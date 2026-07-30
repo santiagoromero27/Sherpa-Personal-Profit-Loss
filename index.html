@@ -7,39 +7,39 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:            #0a0d12;
-    --bg-elevated:   #0f131a;
-    --surface-1:     #131923;
-    --surface-2:     #1a2129;
-    --surface-hover: #202834;
-    --border:        #232b36;
-    --border-soft:   #1a212b;
-    --text-primary:  #eef1f6;
-    --text-secondary:#9aa6b6;
-    --text-muted:    #616e7e;
+    --bg:            #0a0c10;
+    --bg-elevated:   #0e1016;
+    --surface-1:     #12151b;
+    --surface-2:     #171b23;
+    --surface-hover: #1c212b;
+    --border:        #232833;
+    --border-soft:   #1a1e26;
+    --text-primary:  #f1f3f7;
+    --text-secondary:#96a1b0;
+    --text-muted:    #5c6675;
 
-    --accent:        #3987e5;   /* blue - identity, links, primary series */
+    --accent:        #4c8bf5;   /* blue - identity, links, primary series */
     --accent-soft:   #16233a;
-    --series-2:      #9085e9;   /* violet - gross profit series */
-    --series-3:      #d55181;   /* magenta - net profit series (kept off the green/red status hues on purpose) */
+    --series-2:      #9b8cf0;   /* violet - gross profit series */
+    --series-3:      #e0679a;   /* magenta - net profit series (kept off the green/red status hues on purpose) */
 
-    --good:          #22c55e;
-    --good-bg:       #12291c;
-    --good-border:   #1f4a30;
-    --warn:          #f2b84b;
-    --warn-bg:       #2c2311;
-    --warn-border:   #4a3a15;
-    --bad:           #ef5555;
-    --bad-bg:        #2c1414;
-    --bad-border:    #4a1f1f;
-    --info:          #6b7ee0;
+    --good:          #34d399;
+    --good-bg:       #0f2a20;
+    --good-border:   #1f4a37;
+    --warn:          #f5b955;
+    --warn-bg:       #2c2210;
+    --warn-border:   #4a3a16;
+    --bad:           #f2555f;
+    --bad-bg:        #2c1417;
+    --bad-border:    #4a1f23;
+    --info:          #b7c0f5;
     --info-bg:       #191d33;
     --info-border:   #2a2f52;
 
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, Menlo, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --radius: 8px;
-    --radius-sm: 5px;
+    --radius: 10px;
+    --radius-sm: 6px;
   }
 
   *{ box-sizing:border-box; }
@@ -473,24 +473,22 @@
           <label>Status</label>
           <select id="anom-status-filter">
             <option value="all">All</option>
-            <option value="open">Open</option>
-            <option value="pending">Pending</option>
-            <option value="monitor">Monitor</option>
-            <option value="review">Review</option>
-            <option value="explained">Explained</option>
+            <option value="todo">To do</option>
+            <option value="done">Done</option>
           </select>
         </div>
+        <div class="anom-count" id="anom-count" style="margin-left:auto; align-self:center; font-size:12px; color:var(--text-muted);"></div>
       </div>
       <div class="table-scroll">
         <table class="anom-table" id="anom-table">
           <thead>
             <tr>
+              <th style="width:40px;">Done</th>
               <th class="sortable" data-sort="date">Date</th>
               <th class="sortable" data-sort="severity">Severity</th>
               <th>Type</th>
               <th>Detail</th>
               <th class="sortable" data-sort="impact" style="text-align:right;">$ Impact</th>
-              <th class="sortable" data-sort="status">Status</th>
             </tr>
           </thead>
           <tbody id="anom-tbody"></tbody>
@@ -558,7 +556,7 @@ const OPEX_GROUPS = [
 /* ============================================================================
    HELPERS
    ============================================================================ */
-const MONTHS = DATA.months;
+let MONTHS = [];  // populated once DATA loads from data.json (see fetch below)
 const monthShort = m => m.split(" ")[0];
 
 function fmtMoney(n, opts){
@@ -605,10 +603,10 @@ function netPctSeries(exAvestor){
 const state = {
   activeTab: 'overview',
   pnlFrom: 0,
-  pnlTo: MONTHS.length - 1,
+  pnlTo: 0,  // corrected to MONTHS.length-1 once DATA loads
   excludeAvestor: false,
   arFrom: 0,
-  arTo: MONTHS.length - 1,
+  arTo: 0,   // corrected to MONTHS.length-1 once DATA loads
   pnlExpanded: { "Software & AI Tools": false, "Hosting & Infrastructure": false, "Marketing & Outreach Tools": false, "Banking & Card Fees": false, "Travel, Events & Meals": false, "Community & Memberships": false, "Government & Legal Fees": false },
   pnlSectionSort: {}, // sectionKey -> 'asc'|'desc'|null
   anomSevFilter: 'all',
@@ -808,52 +806,35 @@ function renderOverview(){
   const lastIdx = MONTHS.length - 1, prevIdx = lastIdx - 1;
   const lastM = MONTHS[lastIdx], prevM = MONTHS[prevIdx];
 
-  // Money Left Over series
-  const personalTotalByMonth = {};
-  MONTHS.forEach(m => {
-    personalTotalByMonth[m] = Object.values(DATA.personal_by_account).reduce((s,acct)=> s + (acct[m]||0), 0);
-  });
-  const mloByMonth = {};
-  MONTHS.forEach(m => { mloByMonth[m] = DATA.net_profit[m] - personalTotalByMonth[m]; });
-  // Jul is pending (personal not collected) — don't present as a real $0-expense month
-  const julPending = personalTotalByMonth['Jul 2026'] === 0;
-  const lastCompleteIdx = julPending ? lastIdx - 1 : lastIdx;
-  const lastCompleteM = MONTHS[lastCompleteIdx];
-  const priorToCompleteM = MONTHS[lastCompleteIdx - 1];
-
-  // Total Outstanding (A/R) — Wave not connected; use only the explicitly-known pending receivables
-  const totalPendingAR = DATA.pending_receivables.reduce((s,p)=>s+p.amount,0);
+  // 3-month average net profit — run-rate proxy for "building runway vs burning cash"
+  const avg3 = (np[lastM] + np[prevM] + np[MONTHS[lastIdx-2]]) / 3;
+  const openCount = state.anomDone.filter(d=>!d).length;
 
   const kpiHtml = `
     <div class="kpi">
-      <div class="label">Revenue (cash) — ${lastM}</div>
-      <div class="value num">${fmtMoney(rev[lastM])}</div>
-      <div class="sub">${trendArrow(rev[lastM], rev[prevM])} vs ${prevM}</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Net Profit (cash) — ${lastM}</div>
+      <div class="label">Net Profit — ${lastM}</div>
       <div class="value num ${np[lastM]<0?'neg':''}">${fmtMoney(np[lastM])}</div>
       <div class="sub">${trendArrow(np[lastM], np[prevM])} vs ${prevM}</div>
     </div>
     <div class="kpi">
-      <div class="label">Gross Margin % — ${lastM}</div>
+      <div class="label">3-Mo Avg Net Profit</div>
+      <div class="value num ${avg3<0?'neg':''}">${fmtMoney(avg3)}</div>
+      <div class="sub"><span class="badge ${avg3>=0?'ok':'risk'}">${avg3>=0?'Building runway':'Burning cash'}</span> run-rate proxy</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Revenue — ${lastM}</div>
+      <div class="value num">${fmtMoney(rev[lastM])}</div>
+      <div class="sub">${trendArrow(rev[lastM], rev[prevM])} vs ${prevM}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Gross Margin — ${lastM}</div>
       <div class="value num">${fmtPct(gm[lastM])}</div>
-      <div class="sub">${trendArrow(gm[lastM], gm[prevM])} vs ${prevM}</div>
+      <div class="sub">of revenue</div>
     </div>
     <div class="kpi">
-      <div class="label">Money Left Over</div>
-      ${julPending
-        ? `<div class="value" style="font-size:16px; color:var(--warn);">Pending</div>
-           <div class="sub pending-note">Jul personal data not yet collected</div>
-           <div class="sub">Last complete (${lastCompleteM}): <b class="num" style="color:${mloByMonth[lastCompleteM]<0?'var(--bad)':'var(--good)'}">${fmtMoney(mloByMonth[lastCompleteM])}</b></div>`
-        : `<div class="value num ${mloByMonth[lastM]<0?'neg':''}">${fmtMoney(mloByMonth[lastM])}</div>
-           <div class="sub">${trendArrow(mloByMonth[lastM], mloByMonth[prevM])} vs ${prevM}</div>`
-      }
-    </div>
-    <div class="kpi">
-      <div class="label">Total Outstanding (A/R)</div>
-      <div class="value num">${fmtMoney(totalPendingAR)}</div>
-      <div class="sub">Expected, unconfirmed — Wave not connected <span class="badge info">info</span></div>
+      <div class="label">Open Items</div>
+      <div class="value num ${openCount>0?'':''}" style="color:${openCount>0?'var(--warn)':'var(--text-primary)'};">${openCount}</div>
+      <div class="sub"><span class="badge" style="color:var(--warn); background:var(--warn-bg);">${openCount} to-do</span> need triage</div>
     </div>
   `;
   document.getElementById('ov-kpis').innerHTML = kpiHtml;
@@ -899,7 +880,7 @@ function renderOverview(){
 
   // Top 3 open anomalies
   const sevRank = {High:4, Med:3, Low:2, Info:1};
-  const openOnes = DATA.anomalies.filter(a => a.status !== 'explained');
+  const openOnes = DATA.anomalies.filter((a,i) => !state.anomDone[i]);
   openOnes.sort((a,b)=> sevRank[b.severity]-sevRank[a.severity]);
   const top3 = openOnes.slice(0,3);
   document.getElementById('ov-anomalies').innerHTML = top3.map(a => `
@@ -945,7 +926,8 @@ function buildLineRow(label, byMonth, monthsInRange, opts){
   const cells = monthsInRange.map(m=>{
     const v = byMonth[m] || 0;
     const cls = v < 0 ? 'neg' : (v > 0 ? '' : '');
-    return `<td class="num ${cls} ${opts.excluded?'excluded':''}">${fmtMoney(v)}</td>`;
+    const text = v === 0 ? '—' : fmtMoney(v);
+    return `<td class="num ${cls} ${opts.excluded?'excluded':''}">${text}</td>`;
   }).join('');
   const total = monthsInRange.reduce((s,m)=>s+(byMonth[m]||0),0);
   const totalCls = total < 0 ? 'neg' : '';
@@ -1031,7 +1013,10 @@ function renderPnL(){
       const groupTotal = rangeIdx.reduce((s,i)=>s+groupByMonth[MONTHS[i]],0);
       if(groupTotal===0) return;
       const expanded = !!state.pnlExpanded[group.name];
-      const cells = monthsInRange.map(m=>`<td class="num ${groupByMonth[m]<0?'neg':''}">${fmtMoney(groupByMonth[m])}</td>`).join('');
+      const cells = monthsInRange.map(m=>{
+        const gv = groupByMonth[m];
+        return `<td class="num ${gv<0?'neg':''}">${gv===0?'—':fmtMoney(gv)}</td>`;
+      }).join('');
       body += `<tr class="subtotal group-toggle" data-group="${group.name}">
         <td class="rowlabel"><span class="caret">${expanded?'▾':'▸'}</span>${group.name}</td>
         ${cells}
@@ -1156,14 +1141,16 @@ function renderPersonal(){
 
   let rows = '';
   MONTHS.forEach((m,i)=>{
+    const netVal = DATA.net_profit[m];
+    const netCls = netVal < 0 ? 'mlo-neg' : '';
     if(i === MONTHS.length-1 && julPending){
-      rows += `<tr class="mlo-row"><td>${m}</td><td class="num pending-cell" colspan="1">Pending — personal data not yet collected</td></tr>`;
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num pending-cell">Pending</td><td class="num pending-cell">Pending — personal data not yet collected</td></tr>`;
     } else {
       const v = mloValues[i];
-      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${v<0?'mlo-neg':'mlo-pos'}">${fmtMoney(v)}</td></tr>`;
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num">${fmtMoney(personalTotalByMonth[m])}</td><td class="num ${v<0?'mlo-neg':'mlo-pos'}">${fmtMoney(v)}</td></tr>`;
     }
   });
-  document.getElementById('pers-mlo-table').innerHTML = `<thead><tr><th style="text-align:left;">Month</th><th>Money Left Over</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('pers-mlo-table').innerHTML = `<thead><tr><th style="text-align:left;">Month</th><th>Net Profit</th><th>Personal Exp.</th><th>Money Left Over</th></tr></thead><tbody>${rows}</tbody>`;
   document.getElementById('pers-note').textContent = DATA.notes.july_personal_expenses;
 }
 
@@ -1180,28 +1167,31 @@ document.querySelectorAll('#anom-table th.sortable').forEach(th=>{
     renderAnomalies();
   });
 });
+document.getElementById('anom-tbody').addEventListener('change', e=>{
+  if(e.target.matches('input[type=checkbox][data-idx]')){
+    const idx = parseInt(e.target.dataset.idx, 10);
+    state.anomDone[idx] = e.target.checked;
+    renderAnomalies();
+  }
+});
 
 function renderAnomalies(){
   const sevRank = {High:4, Med:3, Low:2, Info:1};
-  const statusRank = { open:5, pending:4, review:3, monitor:2, explained:0 };
-  let rows = DATA.anomalies.filter(a =>
+  let rows = DATA.anomalies.map((a,idx)=>({...a, idx, done: !!state.anomDone[idx]})).filter(a =>
     (state.anomSevFilter === 'all' || a.severity === state.anomSevFilter) &&
-    (state.anomStatusFilter === 'all' || a.status === state.anomStatusFilter)
+    (state.anomStatusFilter === 'all' || (state.anomStatusFilter === 'todo' ? !a.done : a.done))
   );
 
   const { key, dir } = state.anomSort;
   const mul = dir === 'asc' ? 1 : -1;
   if(key === 'default'){
+    // Open (not-done) items float above cleared ones; within each band, sort by severity.
     rows.sort((a,b)=>{
-      const aResolved = a.status === 'explained' ? 1 : 0;
-      const bResolved = b.status === 'explained' ? 1 : 0;
-      if(aResolved !== bResolved) return aResolved - bResolved;
-      return (sevRank[b.severity]-sevRank[a.severity]) || (statusRank[b.status]-statusRank[a.status]);
+      if(a.done !== b.done) return a.done ? 1 : -1;
+      return sevRank[b.severity]-sevRank[a.severity];
     });
   } else if(key === 'severity'){
     rows.sort((a,b)=> mul*(sevRank[a.severity]-sevRank[b.severity]));
-  } else if(key === 'status'){
-    rows.sort((a,b)=> mul*(statusRank[a.status]-statusRank[b.status]));
   } else if(key === 'date'){
     rows.sort((a,b)=> mul*(new Date(a.date)-new Date(b.date)));
   } else if(key === 'impact'){
@@ -1209,15 +1199,19 @@ function renderAnomalies(){
   }
 
   document.getElementById('anom-tbody').innerHTML = rows.map(a => `
-    <tr class="${a.status==='explained'?'explained':''}">
+    <tr class="${a.done?'explained':''}" style="opacity:${a.done?0.45:1};">
+      <td><input type="checkbox" data-idx="${a.idx}" ${a.done?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);"></td>
       <td class="num">${a.date}</td>
       <td><span class="sev-pill ${a.severity}">${a.severity}</span></td>
-      <td>${a.type}</td>
-      <td style="max-width:420px; white-space:normal;">${a.detail}</td>
+      <td style="${a.done?'font-style:italic;':''}">${a.type}</td>
+      <td style="max-width:420px; white-space:normal; ${a.done?'font-style:italic;':''}">${a.detail}</td>
       <td class="num" style="text-align:right;">${a.impact ? fmtMoney(a.impact, {cents:true}) : '—'}</td>
-      <td><span class="status-pill ${a.status}">${a.status}</span></td>
     </tr>
   `).join('');
+
+  const openCount = state.anomDone.filter(d=>!d).length;
+  const doneCount = state.anomDone.filter(d=>d).length;
+  document.getElementById('anom-count').textContent = `${openCount} open · ${doneCount} cleared`;
 
   document.querySelectorAll('#anom-table th.sortable').forEach(th=>{
     const baseLabel = (th.dataset.label || th.textContent.replace(/\s*[↑↓]\s*$/,'').trim());
@@ -1301,7 +1295,15 @@ function init(){
 
 fetch('/data.json')
   .then(r => { if(!r.ok) throw new Error('data.json HTTP '+r.status); return r.json(); })
-  .then(json => { DATA = json; init(); initChat(); })
+  .then(json => {
+    DATA = json;
+    MONTHS = DATA.months;
+    state.pnlTo = MONTHS.length - 1;
+    state.arTo = MONTHS.length - 1;
+    state.anomDone = DATA.anomalies.map(a => !!a.initialDone);
+    init();
+    initChat();
+  })
   .catch(err => {
     document.body.innerHTML = '<div style="padding:60px;text-align:center;font-family:sans-serif;color:#e6e8eb;background:#0b0d10;">'
       + '<h2>Could not load data.json</h2><p style="color:#9aa6b6;">'+err.message+'</p></div>';
