@@ -1,0 +1,12 @@
+{
+  "name": "sherpa-pnl-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sherpa Digital Agency financial command center dashboard",
+  "scripts": {
+    "start": "npx --yes serve -s . -l ${PORT:-3000}"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
