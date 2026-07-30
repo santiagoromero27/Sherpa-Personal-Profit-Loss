@@ -1,18 +1,1318 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sherpa P&L Dashboard — building</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sherpa Digital Agency — Financial Command Center</title>
 <style>
-  body { font-family: -apple-system, sans-serif; background:#0b0d10; color:#e6e8eb; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
-  .card { text-align:center; padding:2rem; }
-  h1 { font-size:1.1rem; font-weight:600; color:#8892a0; }
+  :root{
+    color-scheme: dark;
+    --bg:            #0a0d12;
+    --bg-elevated:   #0f131a;
+    --surface-1:     #131923;
+    --surface-2:     #1a2129;
+    --surface-hover: #202834;
+    --border:        #232b36;
+    --border-soft:   #1a212b;
+    --text-primary:  #eef1f6;
+    --text-secondary:#9aa6b6;
+    --text-muted:    #616e7e;
+
+    --accent:        #3987e5;   /* blue - identity, links, primary series */
+    --accent-soft:   #16233a;
+    --series-2:      #9085e9;   /* violet - gross profit series */
+    --series-3:      #d55181;   /* magenta - net profit series (kept off the green/red status hues on purpose) */
+
+    --good:          #22c55e;
+    --good-bg:       #12291c;
+    --good-border:   #1f4a30;
+    --warn:          #f2b84b;
+    --warn-bg:       #2c2311;
+    --warn-border:   #4a3a15;
+    --bad:           #ef5555;
+    --bad-bg:        #2c1414;
+    --bad-border:    #4a1f1f;
+    --info:          #6b7ee0;
+    --info-bg:       #191d33;
+    --info-border:   #2a2f52;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --radius: 8px;
+    --radius-sm: 5px;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text-primary);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{ font-family:var(--mono); font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+  ::selection{ background:var(--accent); color:#fff; }
+  a{ color:var(--accent); }
+  button{ font-family:inherit; }
+
+  /* ---------- Shell ---------- */
+  .app{ display:flex; flex-direction:column; min-height:100%; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px; border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--bg-elevated), var(--bg));
+    position:sticky; top:0; z-index:50;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{
+    width:34px; height:34px; border-radius:8px;
+    background:linear-gradient(135deg,var(--accent),var(--series-2));
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:15px; color:#fff; letter-spacing:-0.5px;
+    flex-shrink:0;
+  }
+  .brand-text h1{ font-size:15px; margin:0; font-weight:650; letter-spacing:-0.2px; }
+  .brand-text p{ margin:1px 0 0; font-size:11.5px; color:var(--text-muted); }
+  .topbar-right{ display:flex; align-items:center; gap:14px; font-size:12px; color:var(--text-muted); }
+  .live-dot{ width:6px; height:6px; border-radius:50%; background:var(--good); display:inline-block; margin-right:6px; box-shadow:0 0 0 3px var(--good-bg); }
+
+  .tabs{
+    display:flex; gap:2px; padding:0 24px; border-bottom:1px solid var(--border);
+    background:var(--bg); position:sticky; top:65px; z-index:40; overflow-x:auto;
+  }
+  .tab-btn{
+    background:transparent; border:none; color:var(--text-secondary);
+    padding:12px 16px; font-size:13px; font-weight:560; cursor:pointer;
+    border-bottom:2px solid transparent; white-space:nowrap;
+    display:flex; align-items:center; gap:7px;
+    transition:color .12s ease;
+  }
+  .tab-btn:hover{ color:var(--text-primary); }
+  .tab-btn.active{ color:var(--text-primary); border-bottom-color:var(--accent); }
+  .tab-btn .dot{ width:6px;height:6px;border-radius:50%; }
+
+  .content{ flex:1; padding:24px 28px 60px; max-width:1440px; width:100%; margin:0 auto; }
+  .tab-panel{ display:none; animation:fadein .15s ease; }
+  .tab-panel.active{ display:block; }
+  @keyframes fadein{ from{opacity:0;} to{opacity:1;} }
+
+  h2.section-title{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:650; margin:0 0 14px; }
+  .banner{
+    display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:var(--radius);
+    font-size:12.5px; font-weight:600; letter-spacing:.03em; margin-bottom:18px;
+  }
+  .banner.accrual{ background:var(--info-bg); border:1px solid var(--info-border); color:#b7c0f5; text-transform:uppercase; }
+  .banner.pending{ background:var(--warn-bg); border:1px solid var(--warn-border); color:var(--warn); }
+
+  /* ---------- KPI tiles ---------- */
+  .kpi-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:26px; }
+  @media (max-width: 1200px){ .kpi-row{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width: 760px){ .kpi-row{ grid-template-columns:repeat(2,1fr); } }
+  .kpi{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 16px 14px; display:flex; flex-direction:column; gap:6px; min-width:0;
+  }
+  .kpi .label{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); font-weight:650; }
+  .kpi .value{ font-size:23px; font-weight:600; letter-spacing:-0.3px; }
+  .kpi .value.neg{ color:var(--bad); }
+  .kpi .sub{ font-size:11.5px; color:var(--text-secondary); display:flex; align-items:center; gap:5px; }
+  .kpi .sub.pending-note{ color:var(--warn); }
+  .trend{ display:inline-flex; align-items:center; gap:3px; font-weight:650; font-size:11.5px; padding:1px 6px; border-radius:4px; }
+  .trend.up{ color:var(--good); background:var(--good-bg); }
+  .trend.down{ color:var(--bad); background:var(--bad-bg); }
+  .trend.flat{ color:var(--text-muted); background:var(--surface-2); }
+  .badge{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 7px; border-radius:20px; }
+  .badge.risk{ color:var(--bad); background:var(--bad-bg); border:1px solid var(--bad-border); }
+  .badge.watch{ color:var(--warn); background:var(--warn-bg); border:1px solid var(--warn-border); }
+  .badge.ok{ color:var(--good); background:var(--good-bg); border:1px solid var(--good-border); }
+  .badge.muted{ color:var(--text-muted); background:var(--surface-2); border:1px solid var(--border); }
+  .badge.info{ color:var(--info); background:var(--info-bg); border:1px solid var(--info-border); }
+
+  /* ---------- Cards / grid ---------- */
+  .grid-2{ display:grid; grid-template-columns:2fr 1fr; gap:16px; align-items:start; }
+  @media (max-width: 980px){ .grid-2{ grid-template-columns:1fr; } }
+  .card{ background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; }
+  .card + .card{ margin-top:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .card-head h3{ margin:0; font-size:13.5px; font-weight:650; }
+  .card-head .meta{ font-size:11.5px; color:var(--text-muted); }
+
+  /* concentration callout */
+  .conc-row{ display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+  .conc-bar{ flex:1; height:10px; border-radius:6px; overflow:hidden; display:flex; background:var(--surface-2); }
+  .conc-seg{ height:100%; }
+  .conc-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary); margin-top:8px; }
+  .conc-legend span.swatch{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+
+  /* anomaly mini list */
+  .anom-mini{ display:flex; flex-direction:column; gap:8px; }
+  .anom-mini-row{ display:flex; align-items:flex-start; gap:10px; padding:9px 10px; border-radius:6px; background:var(--surface-2); cursor:pointer; border:1px solid transparent; }
+  .anom-mini-row:hover{ border-color:var(--border); background:var(--surface-hover); }
+  .sev-dot{ width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+  .sev-dot.High{ background:var(--bad); }
+  .sev-dot.Med{ background:var(--warn); }
+  .sev-dot.Low{ background:var(--accent); }
+  .sev-dot.Info{ background:var(--text-muted); }
+  .anom-mini-text{ font-size:12.5px; color:var(--text-secondary); line-height:1.4; }
+  .anom-mini-text b{ color:var(--text-primary); font-weight:600; }
+  .link-jump{ font-size:12px; color:var(--accent); cursor:pointer; background:none; border:none; padding:0; margin-top:10px; display:inline-block; }
+  .link-jump:hover{ text-decoration:underline; }
+
+  /* ---------- Table (P&L / terminal density) ---------- */
+  .table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.fin{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.fin th, table.fin td{ padding:6px 12px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--border-soft); }
+  table.fin th:first-child, table.fin td:first-child{ text-align:left; position:sticky; left:0; background:var(--surface-1); z-index:2; min-width:230px; }
+  table.fin thead th{ background:var(--surface-2); color:var(--text-secondary); font-weight:650; font-size:11px; text-transform:uppercase; letter-spacing:.04em; position:sticky; top:0; z-index:3; }
+  table.fin thead th:first-child{ z-index:4; }
+  table.fin tbody tr:hover td{ background:var(--surface-hover); }
+  table.fin tr.subtotal td{ font-weight:700; background:var(--surface-2); }
+  table.fin tr.subtotal:hover td{ background:var(--surface-hover); }
+  table.fin tr.grand td{ font-weight:700; background:var(--accent-soft); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  table.fin tr.section-head td{ color:var(--text-muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; padding-top:14px; background:transparent; border-bottom:1px solid var(--border); }
+  table.fin td.rowlabel{ cursor:pointer; color:var(--text-primary); }
+  table.fin td.rowlabel:hover{ color:var(--accent); text-decoration:underline; }
+  table.fin td.rowlabel .caret{ display:inline-block; width:11px; color:var(--text-muted); }
+  table.fin td.neg{ color:var(--bad); }
+  table.fin td.pos{ color:var(--good); }
+  table.fin td.excluded{ opacity:.35; text-decoration:line-through; }
+  table.fin .indent{ padding-left:26px; color:var(--text-secondary); font-weight:400; }
+  .sortable{ cursor:pointer; user-select:none; }
+  .sortable:hover{ color:var(--text-primary); }
+  .sortable .arrow{ font-size:9px; margin-left:3px; opacity:.6; }
+
+  /* ---------- Controls ---------- */
+  .controls-row{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; margin-bottom:16px; padding:12px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); }
+  .control-group{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary); }
+  .control-group label{ color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:.04em; }
+  select{
+    background:var(--surface-2); color:var(--text-primary); border:1px solid var(--border);
+    border-radius:6px; padding:5px 8px; font-size:12.5px; font-family:var(--sans); cursor:pointer;
+  }
+  .toggle-wrap{ display:flex; align-items:center; gap:9px; margin-left:auto; }
+  .toggle{ position:relative; width:38px; height:21px; background:var(--surface-2); border:1px solid var(--border); border-radius:20px; cursor:pointer; transition:background .15s; flex-shrink:0; }
+  .toggle.on{ background:var(--accent); border-color:var(--accent); }
+  .toggle .knob{ position:absolute; top:1px; left:1px; width:17px; height:17px; border-radius:50%; background:#fff; transition:transform .15s; }
+  .toggle.on .knob{ transform:translateX(17px); }
+  .toggle-label{ font-size:12.5px; font-weight:600; color:var(--text-primary); }
+  .toggle-label small{ display:block; font-weight:400; color:var(--text-muted); font-size:11px; }
+
+  /* ---------- Charts ---------- */
+  .chart-wrap{ position:relative; }
+  svg.chart{ display:block; width:100%; height:auto; overflow:visible; font-family:var(--sans); }
+  .gridline{ stroke:var(--border); stroke-width:1; }
+  .axis-label{ fill:var(--text-muted); font-size:10.5px; }
+  .chart-tooltip{
+    position:absolute; pointer-events:none; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:6px; padding:8px 10px; font-size:11.5px; box-shadow:0 6px 18px rgba(0,0,0,.4);
+    z-index:60; opacity:0; transition:opacity .08s; white-space:nowrap;
+  }
+  .chart-tooltip .tt-title{ font-weight:700; margin-bottom:4px; color:var(--text-primary); }
+  .chart-tooltip .tt-row{ display:flex; align-items:center; gap:6px; color:var(--text-secondary); }
+  .chart-tooltip .tt-row .sw{ width:8px; height:8px; border-radius:2px; }
+  .chart-legend{ display:flex; gap:16px; margin-top:8px; flex-wrap:wrap; }
+  .chart-legend .item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); }
+  .chart-legend .sw{ width:10px; height:10px; border-radius:2px; }
+  .crosshair{ stroke:var(--text-muted); stroke-width:1; stroke-dasharray:3,3; opacity:0; }
+
+  /* sparkline in drilldown */
+  .sparkline-cell svg{ vertical-align:middle; }
+
+  /* ---------- Modal (drill-down) ---------- */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(4,6,10,.65); display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+  .modal-backdrop.open{ display:flex; }
+  .modal{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; width:100%; max-width:640px; padding:22px 24px; box-shadow:0 20px 60px rgba(0,0,0,.6); }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  .modal-head h3{ margin:0; font-size:15px; }
+  .modal-close{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-secondary); width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1; }
+  .modal-close:hover{ color:var(--text-primary); }
+  .modal-sub{ font-size:11.5px; color:var(--text-muted); margin-bottom:16px; }
+  .modal-table{ width:100%; border-collapse:collapse; margin-top:14px; font-size:12px; }
+  .modal-table td, .modal-table th{ padding:5px 8px; border-bottom:1px solid var(--border-soft); text-align:right; }
+  .modal-table td:first-child, .modal-table th:first-child{ text-align:left; color:var(--text-secondary); }
+
+  /* ---------- Empty state (Accrual) ---------- */
+  .empty-state{ text-align:center; padding:46px 20px; border:1px dashed var(--border); border-radius:var(--radius); background:var(--surface-1); }
+  .empty-state .icon{ font-size:30px; margin-bottom:10px; opacity:.6; }
+  .empty-state h4{ margin:0 0 6px; font-size:14px; font-weight:650; }
+  .empty-state p{ margin:0; font-size:12.5px; color:var(--text-muted); max-width:420px; margin:0 auto; }
+  .empty-state .connect-btn{ margin-top:16px; display:inline-block; padding:8px 16px; border-radius:6px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-muted); font-size:12px; font-weight:600; cursor:not-allowed; }
+
+  .aging-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  @media (max-width:820px){ .aging-row{ grid-template-columns:repeat(2,1fr); } }
+  .aging-tile{ border-radius:var(--radius); padding:14px 16px; border:1px solid var(--border); }
+  .aging-tile .aging-label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:650; margin-bottom:6px; }
+  .aging-tile .aging-value{ font-size:20px; font-weight:650; }
+  .aging-tile.current{ background:var(--good-bg); border-color:var(--good-border); }
+  .aging-tile.current .aging-label{ color:var(--good); }
+  .aging-tile.b1{ background:var(--warn-bg); border-color:var(--warn-border); }
+  .aging-tile.b1 .aging-label{ color:var(--warn); }
+  .aging-tile.b2{ background:#3a1f0f; border-color:#5c3416; }
+  .aging-tile.b2 .aging-label{ color:#e8934a; }
+  .aging-tile.b3{ background:var(--bad-bg); border-color:var(--bad-border); }
+  .aging-tile.b3 .aging-label{ color:var(--bad); }
+
+  .pending-card{ border:1px solid var(--warn-border); background:var(--warn-bg); border-radius:var(--radius); padding:16px 18px; margin-bottom:6px; }
+  .pending-item{ display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.06); }
+  .pending-item:last-child{ border-bottom:none; }
+  .pending-item .name{ font-size:12.5px; font-weight:600; }
+  .pending-item .note{ font-size:11px; color:var(--text-muted); display:block; margin-top:2px; font-weight:400; }
+  .pending-item .amt{ font-size:14px; font-weight:650; color:var(--warn); }
+
+  /* Personal tab */
+  .account-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+  @media (max-width:900px){ .account-grid{ grid-template-columns:1fr; } }
+  .account-card{ background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .account-card h4{ margin:0 0 4px; font-size:12.5px; }
+  .account-card .acct-total{ font-size:19px; font-weight:650; margin-bottom:8px; }
+  .mlo-row td.mlo-neg{ color:var(--bad); font-weight:700; }
+  .mlo-row td.mlo-pos{ color:var(--good); font-weight:700; }
+  .pending-cell{ color:var(--warn); font-style:italic; font-weight:600; }
+
+  /* Anomalies tab */
+  .anom-filters{ display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
+  table.anom-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.anom-table th{ text-align:left; padding:8px 12px; background:var(--surface-2); color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); position:sticky; top:0; }
+  table.anom-table td{ padding:10px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+  table.anom-table tr.explained{ opacity:.45; }
+  table.anom-table tr.explained td{ font-style:italic; }
+  table.anom-table tr:hover td{ background:var(--surface-hover); }
+  .sev-pill{ display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+  .sev-pill.High{ color:var(--bad); background:var(--bad-bg); border:1px solid var(--bad-border); }
+  .sev-pill.Med{ color:var(--warn); background:var(--warn-bg); border:1px solid var(--warn-border); }
+  .sev-pill.Low{ color:var(--accent); background:var(--accent-soft); border:1px solid #2a3f5c; }
+  .sev-pill.Info{ color:var(--text-muted); background:var(--surface-2); border:1px solid var(--border); }
+  .status-pill{ font-size:10.5px; font-weight:650; text-transform:capitalize; padding:2px 8px; border-radius:20px; background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); white-space:nowrap; }
+  .status-pill.open{ color:var(--bad); border-color:var(--bad-border); }
+  .status-pill.pending{ color:var(--info); border-color:var(--info-border); }
+  .status-pill.monitor{ color:var(--warn); border-color:var(--warn-border); }
+  .status-pill.review{ color:var(--warn); border-color:var(--warn-border); }
+  .status-pill.explained{ color:var(--text-muted); }
+
+  .footnote{ font-size:11px; color:var(--text-muted); margin-top:14px; line-height:1.6; }
+  .data-note{ font-size:11px; color:var(--text-muted); margin-top:10px; }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Dashboard build in progress — this placeholder will be replaced with the real interactive dashboard.</h1>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-text">
+        <h1>Sherpa Digital Agency</h1>
+        <p>Financial Command Center — pay-per-call &amp; consulting</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span><span class="live-dot"></span>Data through Jul 2026</span>
+    </div>
   </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="pnl">P&amp;L (Cash Basis)</button>
+    <button class="tab-btn" data-tab="accrual">Accrual &amp; A/R</button>
+    <button class="tab-btn" data-tab="personal">Personal</button>
+    <button class="tab-btn" data-tab="anomalies">Anomalies</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ================= OVERVIEW ================= -->
+    <section class="tab-panel active" id="tab-overview">
+      <div class="kpi-row" id="ov-kpis"></div>
+
+      <div class="grid-2">
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Monthly Trend — Revenue · Gross Profit · Net Profit</h3>
+              <span class="meta">Jan 2026 – Jul 2026 · cash basis</span>
+            </div>
+            <div class="chart-wrap" id="ov-trend-chart"></div>
+            <div class="chart-legend">
+              <div class="item"><span class="sw" style="background:var(--accent)"></span>Revenue</div>
+              <div class="item"><span class="sw" style="background:var(--series-2)"></span>Gross Profit</div>
+              <div class="item"><span class="sw" style="background:var(--series-3)"></span>Net Profit</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Revenue Concentration</h3>
+            </div>
+            <div id="ov-concentration"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Top Open Anomalies</h3>
+            </div>
+            <div class="anom-mini" id="ov-anomalies"></div>
+            <button class="link-jump" id="ov-jump-anomalies">View all anomalies →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= P&L ================= -->
+    <section class="tab-panel" id="tab-pnl">
+      <div class="controls-row">
+        <div class="control-group">
+          <label>From</label>
+          <select id="pnl-from"></select>
+        </div>
+        <div class="control-group">
+          <label>To</label>
+          <select id="pnl-to"></select>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-label" style="text-align:right;">
+            Exclude Avestor Consulting
+            <small>Pay-per-call arbitrage vs. consulting economics differ sharply</small>
+          </div>
+          <div class="toggle" id="pnl-avestor-toggle"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="pnl-kpis"></div>
+
+      <div class="table-scroll">
+        <table class="fin" id="pnl-table"></table>
+      </div>
+      <p class="footnote">Click any buyer, publisher, or expense line to see its month-by-month detail. Click a category header (▸) to expand/collapse. Click "Total" to sort a section by size. All figures cash basis, as booked.</p>
+    </section>
+
+    <!-- ================= ACCRUAL & A/R ================= -->
+    <section class="tab-panel" id="tab-accrual">
+      <div class="banner accrual">◆ Accrual View — Invoiced / Earned Revenue, Not Cash-Confirmed</div>
+
+      <div class="controls-row">
+        <div class="control-group">
+          <label>From</label>
+          <select id="ar-from"></select>
+        </div>
+        <div class="control-group">
+          <label>To</label>
+          <select id="ar-to"></select>
+        </div>
+      </div>
+
+      <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);" id="ar-kpis"></div>
+
+      <div class="card">
+        <div class="card-head"><h3>A/R Aging</h3><span class="meta">Days overdue</span></div>
+        <div class="aging-row" id="ar-aging"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Invoices</h3></div>
+        <div class="empty-state" id="ar-empty">
+          <div class="icon">⌁</div>
+          <h4>Wave is not yet connected</h4>
+          <p>This tab is fully built and ready — invoice-level data (invoice #, customer, dates, amount, status, days outstanding) will populate automatically the moment the Wave accounting connection is live. No invoice data is fabricated here.</p>
+          <div class="connect-btn">Connect Wave (pending)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Pending Receivables</h3><span class="meta">Expected, unconfirmed — separate from invoiced A/R above</span></div>
+        <div class="pending-card" id="ar-pending"></div>
+      </div>
+    </section>
+
+    <!-- ================= PERSONAL ================= -->
+    <section class="tab-panel" id="tab-personal">
+      <h2 class="section-title">Monthly Totals by Account</h2>
+      <div class="account-grid" id="pers-accounts"></div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Money Left Over — Net Profit − Personal Expenses</h3>
+          <span class="meta">Negative months flagged red</span>
+        </div>
+        <div class="chart-wrap" id="pers-mlo-chart"></div>
+        <div class="table-scroll" style="margin-top:14px;">
+          <table class="fin" id="pers-mlo-table"></table>
+        </div>
+        <p class="data-note" id="pers-note"></p>
+      </div>
+    </section>
+
+    <!-- ================= ANOMALIES ================= -->
+    <section class="tab-panel" id="tab-anomalies">
+      <div class="anom-filters">
+        <div class="control-group">
+          <label>Severity</label>
+          <select id="anom-sev-filter">
+            <option value="all">All</option>
+            <option value="High">High</option>
+            <option value="Med">Med</option>
+            <option value="Low">Low</option>
+            <option value="Info">Info</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>Status</label>
+          <select id="anom-status-filter">
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="pending">Pending</option>
+            <option value="monitor">Monitor</option>
+            <option value="review">Review</option>
+            <option value="explained">Explained</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="anom-table" id="anom-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="date">Date</th>
+              <th class="sortable" data-sort="severity">Severity</th>
+              <th>Type</th>
+              <th>Detail</th>
+              <th class="sortable" data-sort="impact" style="text-align:right;">$ Impact</th>
+              <th class="sortable" data-sort="status">Status</th>
+            </tr>
+          </thead>
+          <tbody id="anom-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="chart-tooltip" id="global-tooltip"></div>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="chart-wrap" id="modal-chart"></div>
+    <table class="modal-table" id="modal-table"></table>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   DATA MODULE — the single source of truth.
+   Swap this object wholesale on future refreshes; nothing else in this file
+   should need to change. All figures verbatim from the live bookkeeping pull.
+   ============================================================================ */
+const DATA = {
+  "months": ["Jan 2026","Feb 2026","Mar 2026","Apr 2026","May 2026","Jun 2026","Jul 2026"],
+  "revenue_by_buyer": {
+    "Faith Contact Center": {"Jan 2026":11677.4,"Feb 2026":10160.0,"Mar 2026":2400.0,"Apr 2026":0,"May 2026":1130.0,"Jun 2026":2430.0,"Jul 2026":3160.0},
+    "Wire & Other Income": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":975.0,"May 2026":0,"Jun 2026":300.0,"Jul 2026":0},
+    "Avestor Consulting": {"Jan 2026":2040.0,"Feb 2026":2295.0,"Mar 2026":2363.0,"Apr 2026":2244.0,"May 2026":3332.0,"Jun 2026":2261.0,"Jul 2026":1088.0},
+    "TrueChoice Coverage": {"Jan 2026":0,"Feb 2026":680.0,"Mar 2026":600.0,"Apr 2026":0,"May 2026":0,"Jun 2026":1720.0,"Jul 2026":0},
+    "Mario Villarreal / Lightning SBA": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":480.18,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Brokercalls1095": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":450.0,"Apr 2026":1185.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Mojo Media LLC": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":1815.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "SRA Healthcare": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":1449.0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0}
+  },
+  "total_revenue": {"Jan 2026":13717.4,"Feb 2026":13135.0,"Mar 2026":7262.0,"Apr 2026":6699.18,"May 2026":4462.0,"Jun 2026":6711.0,"Jul 2026":4248.0},
+  "cogs_by_publisher": {
+    "FlexMarketing": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-350.0,"Jul 2026":-105.0},
+    "Meta Ads (Call Generation)": {"Jan 2026":-1241.8,"Feb 2026":-503.55,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-380.0,"Jul 2026":-3075.31},
+    "Brokercalls LLC": {"Jan 2026":0,"Feb 2026":-2250.0,"Mar 2026":-1275.0,"Apr 2026":0,"May 2026":0,"Jun 2026":-360.0,"Jul 2026":-180.0},
+    "Marketcall": {"Jan 2026":-880.0,"Feb 2026":-3040.0,"Mar 2026":-920.0,"Apr 2026":0,"May 2026":-1216.0,"Jun 2026":-933.0,"Jul 2026":0},
+    "Inulti": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-350.0,"Jun 2026":-805.0,"Jul 2026":-140.0},
+    "Bil Ray Advertising (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-90.0,"Jun 2026":0,"Jul 2026":0},
+    "Contra.com (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":-247.48,"Apr 2026":-177.45,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Shayama Praveen (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-416.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Evolving Dynamic (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-720.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Webstersolution": {"Jan 2026":0,"Feb 2026":-1750.0,"Mar 2026":0,"Apr 2026":-90.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "PayPal (Publisher Payment)": {"Jan 2026":-19.95,"Feb 2026":-79.95,"Mar 2026":0,"Apr 2026":-349.98,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Insurance Care Now (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-165.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Marawan Khledda (Publisher)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-500.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Mediaknights": {"Jan 2026":0,"Feb 2026":-105.0,"Mar 2026":-780.0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Mojo Media (Publisher)": {"Jan 2026":0,"Feb 2026":-2750.0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Remitly (Publisher, Int'l)": {"Jan 2026":0,"Feb 2026":-70.99,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Doppcall": {"Jan 2026":-12000.0,"Feb 2026":1773.0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0}
+  },
+  "total_cogs": {"Jan 2026":-14141.75,"Feb 2026":-8776.49,"Mar 2026":-3222.48,"Apr 2026":-2418.43,"May 2026":-1656.0,"Jun 2026":-2828.0,"Jul 2026":-3500.31},
+  "gross_profit": {"Jan 2026":-424.35,"Feb 2026":4358.51,"Mar 2026":4039.52,"Apr 2026":4280.75,"May 2026":2806.0,"Jun 2026":3883.0,"Jul 2026":747.69},
+  "gross_margin_pct": {"Jan 2026":-3.1,"Feb 2026":33.2,"Mar 2026":55.6,"Apr 2026":63.9,"May 2026":62.9,"Jun 2026":57.9,"Jul 2026":17.6},
+  "opex_by_category": {
+    "Anthropic / Claude": {"Jan 2026":-25.0,"Feb 2026":-20.0,"Mar 2026":-20.0,"Apr 2026":-25.0,"May 2026":-75.07,"Jun 2026":-124.72,"Jul 2026":-50.88},
+    "Kling AI (AI Video)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-31.99,"Jul 2026":-28.8},
+    "Railway (Hosting)": {"Jan 2026":-2.37,"Feb 2026":-8.69,"Mar 2026":-6.66,"Apr 2026":-8.91,"May 2026":-13.89,"Jun 2026":-23.08,"Jul 2026":0},
+    "Card Interest & Foreign Transaction Fees": {"Jan 2026":-0.09,"Feb 2026":-15.09,"Mar 2026":-10.49,"Apr 2026":-0.19,"May 2026":-0.18,"Jun 2026":-0.2,"Jul 2026":-0.21},
+    "Canva": {"Jan 2026":-3.17,"Feb 2026":-3.11,"Mar 2026":-6.22,"Apr 2026":-6.46,"May 2026":-6.21,"Jun 2026":-6.71,"Jul 2026":-7.14},
+    "Lovable (App Builder)": {"Jan 2026":-25.0,"Feb 2026":-25.0,"Mar 2026":-25.0,"Apr 2026":-5.0,"May 2026":-5.0,"Jun 2026":-5.0,"Jul 2026":-5.0},
+    "OpenAI": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-30.0,"Jul 2026":-20.0},
+    "Era (Finance App)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-9.99,"Jul 2026":-9.99},
+    "Skool Community": {"Jan 2026":-37.0,"Feb 2026":-37.0,"Mar 2026":-37.0,"Apr 2026":-37.0,"May 2026":-37.0,"Jun 2026":-37.0,"Jul 2026":-37.0},
+    "Higgsfield (AI Video)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-45.0,"Jul 2026":-19.0},
+    "LinkedIn Ads / Sales Navigator": {"Jan 2026":0,"Feb 2026":-119.99,"Mar 2026":-119.99,"Apr 2026":-119.99,"May 2026":-119.99,"Jun 2026":-119.99,"Jul 2026":-119.99},
+    "Moja AI": {"Jan 2026":-24.03,"Feb 2026":-41.65,"Mar 2026":-29.75,"Apr 2026":-41.64,"May 2026":-175.46,"Jun 2026":-154.4,"Jul 2026":-128.93},
+    "Routix": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-43.6,"Jul 2026":0},
+    "Wave Pro": {"Jan 2026":-9.5,"Feb 2026":0,"Mar 2026":-19.0,"Apr 2026":-19.0,"May 2026":-19.0,"Jun 2026":-19.0,"Jul 2026":-19.0},
+    "Aimfox (LinkedIn Automation)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-49.0,"Jun 2026":-49.0,"Jul 2026":-49.0},
+    "ClickUp": {"Jan 2026":0,"Feb 2026":-10.0,"Mar 2026":-10.0,"Apr 2026":-10.0,"May 2026":-10.0,"Jun 2026":-10.0,"Jul 2026":-10.0},
+    "Bank & Wire Fees": {"Jan 2026":-22.5,"Feb 2026":-12.5,"Mar 2026":-17.5,"Apr 2026":-20.0,"May 2026":-2.5,"Jun 2026":-10.0,"Jul 2026":-20.0},
+    "AWS (Hosting)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-6.19,"Jul 2026":-57.01},
+    "Google Workspace": {"Jan 2026":-8.4,"Feb 2026":-8.4,"Mar 2026":-8.4,"Apr 2026":-8.4,"May 2026":-8.4,"Jun 2026":-8.4,"Jul 2026":-8.4},
+    "Element Hotel (Lodging)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":-340.31,"Jul 2026":0},
+    "JetBlue (Airfare)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-524.81,"Jun 2026":0,"Jul 2026":0},
+    "Bright Data (Scraping Tool)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-20.0,"Jun 2026":0,"Jul 2026":0},
+    "Leadgenworld (Conference)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":-495.0,"Jun 2026":0,"Jul 2026":0},
+    "Perplexity AI": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Forge": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-106.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Clay (Data Enrichment)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-185.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Instantly": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":-322.0,"Apr 2026":-100.0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Ticketmaster (Meals/Entertainment)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":-47.2,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Kanbox (LinkedIn Tool)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":-20.0,"Apr 2026":-33.72,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "HeyGen (AI Avatar)": {"Jan 2026":0,"Feb 2026":-29.0,"Mar 2026":-29.0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "NIC Inc. (Government Filing Fee)": {"Jan 2026":0,"Feb 2026":0,"Mar 2026":-138.75,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Other Software Tools": {"Jan 2026":0,"Feb 2026":-36.05,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "QuickBooks (Accounting)": {"Jan 2026":-19.0,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0},
+    "Base": {"Jan 2026":-49.06,"Feb 2026":0,"Mar 2026":0,"Apr 2026":0,"May 2026":0,"Jun 2026":0,"Jul 2026":0}
+  },
+  "total_opex": {"Jan 2026":-225.12,"Feb 2026":-366.48,"Mar 2026":-819.76,"Apr 2026":-773.51,"May 2026":-1561.51,"Jun 2026":-1074.58,"Jul 2026":-590.35},
+  "net_profit": {"Jan 2026":-649.47,"Feb 2026":3992.03,"Mar 2026":3219.76,"Apr 2026":3507.24,"May 2026":1244.49,"Jun 2026":2808.42,"Jul 2026":157.34},
+  "net_margin_pct": {"Jan 2026":-4.7,"Feb 2026":30.4,"Mar 2026":44.3,"Apr 2026":52.4,"May 2026":27.9,"Jun 2026":41.8,"Jul 2026":3.7},
+  "personal_by_account": {
+    "Personal Checking": {"Jan 2026":1984.63,"Feb 2026":1143.81,"Mar 2026":2097.63,"Apr 2026":2124.93,"May 2026":2177.75,"Jun 2026":891.85,"Jul 2026":0},
+    "Chase Freedom Unlimited": {"Jan 2026":693.64,"Feb 2026":626.01,"Mar 2026":762.33,"Apr 2026":998.99,"May 2026":990.45,"Jun 2026":949.38,"Jul 2026":0},
+    "Chase Freedom Flex": {"Jan 2026":50.69,"Feb 2026":34.99,"Mar 2026":93.74,"Apr 2026":22.95,"May 2026":0,"Jun 2026":0,"Jul 2026":0}
+  },
+  "pending_receivables": [
+    {"buyer":"Faith Contact Center — expected soon","amount":840,"note":"Not yet posted as of 2026-07-30"},
+    {"buyer":"Avestor Consulting — expected soon","amount":969,"note":"Not yet posted as of 2026-07-30"}
+  ],
+  "anomalies": [
+    {"date":"2026-07-24","severity":"High","type":"Reconciliation","detail":"Feb: $1,773 Payoneer credit — bank data sees revenue; the books reclassified it as a Doppcall COGS refund. Explains most of Feb Rev -$522 & COGS -$1,593 gaps.","impact":1773,"status":"explained"},
+    {"date":"2026-07-24","severity":"Med","type":"Reconciliation","detail":"Jan: bank deposits total $1,150.91 less than booked Jan revenue (Wave→Faith tracing / timing).","impact":1150.91,"status":"review"},
+    {"date":"2026-07-24","severity":"Med","type":"Reconciliation","detail":"Feb: Avestor $2,295 + PayPal $79.95 not in Feb business deposits (timing or other account).","impact":2374.95,"status":"review"},
+    {"date":"2026-07-24","severity":"Low","type":"Reconciliation","detail":"Feb Meta Ads: bank $403.55 vs books $503.55.","impact":100,"status":"review"},
+    {"date":"2026-07-24","severity":"Low","type":"Vendor billing","detail":"Moja AI issued a $31.50 credit note (Jun 12) for 21 toll-free numbers overbilled — confirm it hits the July invoice.","impact":31.5,"status":"open"},
+    {"date":"2026-07-24","severity":"High","type":"Concentration","detail":"Faith Contact Center = 53% of revenue and declining ($11,677→$2,430). Avestor = ~100% of profit. Top-2 = 81% of revenue.","impact":0,"status":"monitor"},
+    {"date":"2026-07-24","severity":"High","type":"Loss month","detail":"Jan (-$649) and May (-$2,088 ex-Avestor) were loss months; two loss months erased four profitable ones.","impact":0,"status":"monitor"},
+    {"date":"2026-07-30","severity":"Info","type":"Expected Receivable","detail":"Expecting a payment from Faith Contact Center soon. Amount: ~$840. NOT yet posted as of 2026-07-30 — only $780, $1,490, $890 have posted in July, total $3,160.","impact":840,"status":"pending"},
+    {"date":"2026-07-30","severity":"Info","type":"Expected Receivable","detail":"Expecting a ~$969 payment from Avestor Consulting soon. NOT yet posted as of 2026-07-30 — only the $1,088 Jul 13 payment has posted this month.","impact":969,"status":"pending"}
+  ],
+  "notes": {
+    "july_personal_expenses": "Not yet collected for July — shown as 0, treat as pending not a real $0 month",
+    "accrual_ar": "Wave not yet connected — Accrual/A&R tab should render an empty/not-connected state, no fake invoice data"
+  }
+};
+
+/* Grouping map for OpEx display only — purely a UI convenience for the
+   expandable "category" rows. Every key in DATA.opex_by_category appears in
+   exactly one group. Moja AI is deliberately its own top-level "Call Tracking"
+   line and is never folded into the generic software bucket. */
+const OPEX_GROUPS = [
+  { name: "Call Tracking (Moja AI)", standalone:true, items: ["Moja AI"] },
+  { name: "Software & AI Tools", items: ["Anthropic / Claude","Kling AI (AI Video)","Lovable (App Builder)","OpenAI","Era (Finance App)","Higgsfield (AI Video)","Perplexity AI","HeyGen (AI Avatar)","Bright Data (Scraping Tool)","Clay (Data Enrichment)","Instantly","Forge","Other Software Tools","Base","QuickBooks (Accounting)","Wave Pro","ClickUp","Routix","Kanbox (LinkedIn Tool)"] },
+  { name: "Hosting & Infrastructure", items: ["Railway (Hosting)","AWS (Hosting)","Google Workspace"] },
+  { name: "Marketing & Outreach Tools", items: ["LinkedIn Ads / Sales Navigator","Aimfox (LinkedIn Automation)","Canva"] },
+  { name: "Banking & Card Fees", items: ["Card Interest & Foreign Transaction Fees","Bank & Wire Fees"] },
+  { name: "Travel, Events & Meals", items: ["Element Hotel (Lodging)","JetBlue (Airfare)","Leadgenworld (Conference)","Ticketmaster (Meals/Entertainment)"] },
+  { name: "Community & Memberships", items: ["Skool Community"] },
+  { name: "Government & Legal Fees", items: ["NIC Inc. (Government Filing Fee)"] },
+];
+
+/* ============================================================================
+   HELPERS
+   ============================================================================ */
+const MONTHS = DATA.months;
+const monthShort = m => m.split(" ")[0];
+
+function fmtMoney(n, opts){
+  opts = opts || {};
+  const cents = opts.cents !== undefined ? opts.cents : false;
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const str = abs.toLocaleString('en-US', { minimumFractionDigits: cents?2:0, maximumFractionDigits: cents?2:0 });
+  return (neg ? '-$' : '$') + str;
+}
+function fmtPct(n, digits){
+  digits = digits === undefined ? 1 : digits;
+  return (n>=0?'':'') + n.toFixed(digits) + '%';
+}
+function sumObj(obj){ return MONTHS.reduce((a,m)=>a+(obj[m]||0),0); }
+function rangeSum(obj, fromIdx, toIdx){
+  let s=0; for(let i=fromIdx;i<=toIdx;i++){ s += (obj[MONTHS[i]]||0); } return s;
+}
+
+/* ---- Recomputable aggregates (respect Avestor toggle) -------------------- */
+function revenueSeries(exAvestor){
+  return MONTHS.map(m => DATA.total_revenue[m] - (exAvestor ? DATA.revenue_by_buyer["Avestor Consulting"][m] : 0));
+}
+function grossSeries(exAvestor){
+  const rev = revenueSeries(exAvestor);
+  return MONTHS.map((m,i) => rev[i] + DATA.total_cogs[m]);
+}
+function netSeries(exAvestor){
+  const gross = grossSeries(exAvestor);
+  return MONTHS.map((m,i) => gross[i] + DATA.total_opex[m]);
+}
+function grossPctSeries(exAvestor){
+  const rev = revenueSeries(exAvestor), gross = grossSeries(exAvestor);
+  return MONTHS.map((m,i) => rev[i] !== 0 ? (gross[i]/rev[i]*100) : 0);
+}
+function netPctSeries(exAvestor){
+  const rev = revenueSeries(exAvestor), net = netSeries(exAvestor);
+  return MONTHS.map((m,i) => rev[i] !== 0 ? (net[i]/rev[i]*100) : 0);
+}
+
+/* ============================================================================
+   STATE
+   ============================================================================ */
+const state = {
+  activeTab: 'overview',
+  pnlFrom: 0,
+  pnlTo: MONTHS.length - 1,
+  excludeAvestor: false,
+  arFrom: 0,
+  arTo: MONTHS.length - 1,
+  pnlExpanded: { "Software & AI Tools": false, "Hosting & Infrastructure": false, "Marketing & Outreach Tools": false, "Banking & Card Fees": false, "Travel, Events & Meals": false, "Community & Memberships": false, "Government & Legal Fees": false },
+  pnlSectionSort: {}, // sectionKey -> 'asc'|'desc'|null
+  anomSevFilter: 'all',
+  anomStatusFilter: 'all',
+  anomSort: { key: 'default', dir: 'desc' },
+};
+
+/* ============================================================================
+   TAB NAVIGATION
+   ============================================================================ */
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  goToTab(btn.dataset.tab);
+});
+function goToTab(tab){
+  state.activeTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-'+tab));
+}
+document.getElementById('ov-jump-anomalies').addEventListener('click', ()=> goToTab('anomalies'));
+
+/* ============================================================================
+   SVG CHART ENGINE (no external libs)
+   ============================================================================ */
+const tooltipEl = document.getElementById('global-tooltip');
+
+function showTooltip(html, x, y){
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.opacity = 1;
+  const rect = tooltipEl.getBoundingClientRect();
+  let left = x + 14, top = y - rect.height - 10;
+  if(left + rect.width > window.innerWidth - 10) left = x - rect.width - 14;
+  if(top < 10) top = y + 16;
+  tooltipEl.style.left = (left + window.scrollX) + 'px';
+  tooltipEl.style.top = (top + window.scrollY) + 'px';
+}
+function hideTooltip(){ tooltipEl.style.opacity = 0; }
+
+/* Multi-series line/area chart. series = [{name, color, values:[...], area:bool}] */
+function renderLineChart(container, monthsLabels, series, opts){
+  opts = opts || {};
+  const W = opts.width || 900, H = opts.height || 260;
+  const padL = 54, padR = 16, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = monthsLabels.length;
+  const allVals = series.flatMap(s => s.values);
+  let minV = Math.min(0, ...allVals), maxV = Math.max(...allVals);
+  if(minV === maxV){ minV -= 1; maxV += 1; }
+  const pad = (maxV - minV) * 0.12;
+  minV -= pad; maxV += pad;
+  const xFor = i => padL + (n===1 ? plotW/2 : (i/(n-1))*plotW);
+  const yFor = v => padT + plotH - ((v - minV)/(maxV - minV))*plotH;
+
+  const zeroY = yFor(0);
+  let gridHtml = '';
+  const gridSteps = 4;
+  for(let g=0; g<=gridSteps; g++){
+    const v = minV + (maxV-minV)*g/gridSteps;
+    const y = yFor(v);
+    gridHtml += `<line class="gridline" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" />`;
+    gridHtml += `<text class="axis-label" x="${padL-8}" y="${y+3}" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
+  }
+  gridHtml += `<line class="gridline" x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}" style="stroke:var(--text-muted); opacity:.5;" />`;
+
+  let xLabels = '';
+  monthsLabels.forEach((m,i)=>{
+    xLabels += `<text class="axis-label" x="${xFor(i)}" y="${H-8}" text-anchor="middle">${monthShort(m)}</text>`;
+  });
+
+  let seriesHtml = '';
+  series.forEach(s => {
+    if(s.area){
+      let d = `M ${xFor(0)} ${zeroY} `;
+      s.values.forEach((v,i)=> d += `L ${xFor(i)} ${yFor(v)} `);
+      d += `L ${xFor(n-1)} ${zeroY} Z`;
+      seriesHtml += `<path d="${d}" fill="${s.color}" opacity="0.10" stroke="none"/>`;
+    }
+    let line = '';
+    s.values.forEach((v,i)=> line += (i===0?'M':'L') + ` ${xFor(i)} ${yFor(v)} `);
+    seriesHtml += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.values.forEach((v,i)=>{
+      seriesHtml += `<circle class="pt" data-si="${series.indexOf(s)}" data-i="${i}" cx="${xFor(i)}" cy="${yFor(v)}" r="3.5" fill="${s.color}" stroke="var(--bg-elevated)" stroke-width="1.5"/>`;
+    });
+  });
+
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    ${gridHtml}${xLabels}${seriesHtml}
+    <line class="crosshair" id="cross-${container.id}" x1="0" y1="${padT}" x2="0" y2="${H-padB}" />
+  </svg>`;
+  container.innerHTML = svg;
+
+  const svgEl = container.querySelector('svg');
+  const cross = container.querySelector('#cross-'+container.id);
+
+  svgEl.addEventListener('mousemove', (e)=>{
+    const rect = svgEl.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
+    let idx = Math.round(((mx - padL)/plotW) * (n-1));
+    idx = Math.max(0, Math.min(n-1, idx));
+    cross.setAttribute('x1', xFor(idx)); cross.setAttribute('x2', xFor(idx));
+    cross.style.opacity = 1;
+    let rows = series.map(s => `<div class="tt-row"><span class="sw" style="background:${s.color}"></span>${s.name}: <b class="num" style="color:var(--text-primary)">${opts.fmt ? opts.fmt(s.values[idx]) : s.values[idx]}</b></div>`).join('');
+    showTooltip(`<div class="tt-title">${monthsLabels[idx]}</div>${rows}`, e.clientX, e.clientY);
+  });
+  svgEl.addEventListener('mouseleave', ()=>{ cross.style.opacity = 0; hideTooltip(); });
+}
+
+/* Simple bar chart for a single series (used in drill-down modal + sparklines) */
+function renderBarChart(container, monthsLabels, values, opts){
+  opts = opts || {};
+  const W = opts.width || 560, H = opts.height || 180;
+  const padL = 46, padR = 12, padT = 12, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = values.length;
+  const maxAbs = Math.max(1, ...values.map(v=>Math.abs(v)));
+  const zeroY = padT + plotH/2;
+  const scale = (plotH/2 - 6) / maxAbs;
+  const barW = Math.max(6, (plotW/n) * 0.55);
+  const gap = plotW / n;
+
+  let bars = '';
+  values.forEach((v,i)=>{
+    const x = padL + i*gap + (gap-barW)/2;
+    const h = Math.abs(v)*scale;
+    const y = v >= 0 ? zeroY - h : zeroY;
+    const color = v >= 0 ? (opts.posColor || 'var(--good)') : (opts.negColor || 'var(--bad)');
+    bars += `<rect data-i="${i}" x="${x}" y="${y}" width="${barW}" height="${Math.max(1,h)}" fill="${color}" rx="2"/>`;
+  });
+  let xLabels = '';
+  monthsLabels.forEach((m,i)=>{
+    xLabels += `<text class="axis-label" x="${padL + i*gap + gap/2}" y="${H-6}" text-anchor="middle">${monthShort(m)}</text>`;
+  });
+
+  const svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    <line class="gridline" x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}" style="opacity:.6"/>
+    ${bars}${xLabels}
+  </svg>`;
+  container.innerHTML = svg;
+  const svgEl = container.querySelector('svg');
+  svgEl.querySelectorAll('rect').forEach(r=>{
+    r.addEventListener('mousemove', (e)=>{
+      const i = +r.dataset.i;
+      showTooltip(`<div class="tt-title">${monthsLabels[i]}</div><div class="tt-row"><b class="num" style="color:var(--text-primary)">${opts.fmt ? opts.fmt(values[i]) : values[i]}</b></div>`, e.clientX, e.clientY);
+    });
+    r.addEventListener('mouseleave', hideTooltip);
+  });
+}
+
+/* Tiny inline sparkline (SVG string, for embedding directly in table cells) */
+function sparklineSvg(values, w, h, color){
+  w = w||70; h = h||20;
+  const maxV = Math.max(...values), minV = Math.min(...values);
+  const range = (maxV-minV)||1;
+  const pts = values.map((v,i)=> `${(i/(values.length-1))*w},${h - ((v-minV)/range)*h}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="overflow:visible;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+/* ============================================================================
+   MODAL DRILL-DOWN
+   ============================================================================ */
+const modalBackdrop = document.getElementById('modal-backdrop');
+document.getElementById('modal-close').addEventListener('click', ()=> modalBackdrop.classList.remove('open'));
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop) modalBackdrop.classList.remove('open'); });
+
+function openDrilldown(name, valuesByMonth, opts){
+  opts = opts || {};
+  document.getElementById('modal-title').textContent = name;
+  document.getElementById('modal-sub').textContent = opts.sub || 'Month-by-month, cash basis';
+  const values = MONTHS.map(m => valuesByMonth[m] || 0);
+  const chartEl = document.getElementById('modal-chart');
+  renderBarChart(chartEl, MONTHS, values, { fmt: v=>fmtMoney(v, {cents:true}), posColor: opts.posColor, negColor: opts.negColor, width:560, height:190 });
+  const total = values.reduce((a,b)=>a+b,0);
+  let rows = MONTHS.map((m,i)=> `<tr><td>${m}</td><td class="num">${fmtMoney(values[i], {cents:true})}</td></tr>`).join('');
+  rows += `<tr style="font-weight:700;border-top:1px solid var(--border);"><td>Total</td><td class="num">${fmtMoney(total, {cents:true})}</td></tr>`;
+  document.getElementById('modal-table').innerHTML = `<thead><tr><th>Month</th><th>Amount</th></tr></thead><tbody>${rows}</tbody>`;
+  modalBackdrop.classList.add('open');
+}
+
+/* ============================================================================
+   OVERVIEW TAB
+   ============================================================================ */
+function trendArrow(curr, prev, goodIsUp){
+  goodIsUp = goodIsUp === undefined ? true : goodIsUp;
+  if(prev === 0 && curr === 0) return `<span class="trend flat">— flat</span>`;
+  const delta = curr - prev;
+  const pct = prev !== 0 ? (delta/Math.abs(prev)*100) : 100;
+  const up = delta >= 0;
+  const cls = (up === goodIsUp) ? 'up' : 'down';
+  const arrow = up ? '▲' : '▼';
+  return `<span class="trend ${cls}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
+
+function renderOverview(){
+  const rev = DATA.total_revenue, gp = DATA.gross_profit, gm = DATA.gross_margin_pct, np = DATA.net_profit;
+  const lastIdx = MONTHS.length - 1, prevIdx = lastIdx - 1;
+  const lastM = MONTHS[lastIdx], prevM = MONTHS[prevIdx];
+
+  // Money Left Over series
+  const personalTotalByMonth = {};
+  MONTHS.forEach(m => {
+    personalTotalByMonth[m] = Object.values(DATA.personal_by_account).reduce((s,acct)=> s + (acct[m]||0), 0);
+  });
+  const mloByMonth = {};
+  MONTHS.forEach(m => { mloByMonth[m] = DATA.net_profit[m] - personalTotalByMonth[m]; });
+  // Jul is pending (personal not collected) — don't present as a real $0-expense month
+  const julPending = personalTotalByMonth['Jul 2026'] === 0;
+  const lastCompleteIdx = julPending ? lastIdx - 1 : lastIdx;
+  const lastCompleteM = MONTHS[lastCompleteIdx];
+  const priorToCompleteM = MONTHS[lastCompleteIdx - 1];
+
+  // Total Outstanding (A/R) — Wave not connected; use only the explicitly-known pending receivables
+  const totalPendingAR = DATA.pending_receivables.reduce((s,p)=>s+p.amount,0);
+
+  const kpiHtml = `
+    <div class="kpi">
+      <div class="label">Revenue (cash) — ${lastM}</div>
+      <div class="value num">${fmtMoney(rev[lastM])}</div>
+      <div class="sub">${trendArrow(rev[lastM], rev[prevM])} vs ${prevM}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Net Profit (cash) — ${lastM}</div>
+      <div class="value num ${np[lastM]<0?'neg':''}">${fmtMoney(np[lastM])}</div>
+      <div class="sub">${trendArrow(np[lastM], np[prevM])} vs ${prevM}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Gross Margin % — ${lastM}</div>
+      <div class="value num">${fmtPct(gm[lastM])}</div>
+      <div class="sub">${trendArrow(gm[lastM], gm[prevM])} vs ${prevM}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Money Left Over</div>
+      ${julPending
+        ? `<div class="value" style="font-size:16px; color:var(--warn);">Pending</div>
+           <div class="sub pending-note">Jul personal data not yet collected</div>
+           <div class="sub">Last complete (${lastCompleteM}): <b class="num" style="color:${mloByMonth[lastCompleteM]<0?'var(--bad)':'var(--good)'}">${fmtMoney(mloByMonth[lastCompleteM])}</b></div>`
+        : `<div class="value num ${mloByMonth[lastM]<0?'neg':''}">${fmtMoney(mloByMonth[lastM])}</div>
+           <div class="sub">${trendArrow(mloByMonth[lastM], mloByMonth[prevM])} vs ${prevM}</div>`
+      }
+    </div>
+    <div class="kpi">
+      <div class="label">Total Outstanding (A/R)</div>
+      <div class="value num">${fmtMoney(totalPendingAR)}</div>
+      <div class="sub">Expected, unconfirmed — Wave not connected <span class="badge info">info</span></div>
+    </div>
+  `;
+  document.getElementById('ov-kpis').innerHTML = kpiHtml;
+
+  // Trend chart
+  renderLineChart(document.getElementById('ov-trend-chart'), MONTHS, [
+    { name:'Revenue', color:'#3987e5', values: MONTHS.map(m=>rev[m]) },
+    { name:'Gross Profit', color:'#9085e9', values: MONTHS.map(m=>gp[m]) },
+    { name:'Net Profit', color:'#d55181', values: MONTHS.map(m=>np[m]), area:true },
+  ], { fmt: v => fmtMoney(v, {cents:true}) });
+
+  // Concentration
+  const totalRevAll = MONTHS.reduce((s,m)=>s+rev[m],0);
+  const buyerTotals = Object.entries(DATA.revenue_by_buyer).map(([name,byMonth])=>({name, total: sumObj(byMonth)}));
+  buyerTotals.sort((a,b)=>b.total-a.total);
+  const top2 = buyerTotals.slice(0,2);
+  const top2Pct = top2.reduce((s,b)=>s+b.total,0) / totalRevAll * 100;
+  const flagged = top2Pct > 75;
+  const colors = ['#3987e5','#9085e9','#2fbd8e','#616e7e'];
+  let segHtml = '';
+  let legendHtml = '';
+  const shown = buyerTotals.slice(0,3);
+  const otherTotal = totalRevAll - shown.reduce((s,b)=>s+b.total,0);
+  const allSegs = [...shown, {name:'All other buyers', total: otherTotal}];
+  allSegs.forEach((b,i)=>{
+    const pct = b.total/totalRevAll*100;
+    segHtml += `<div class="conc-seg" style="width:${pct}%; background:${colors[i]||'#616e7e'};" title="${b.name}: ${pct.toFixed(1)}%"></div>`;
+    legendHtml += `<div><span class="swatch" style="background:${colors[i]||'#616e7e'}"></span>${b.name} — ${pct.toFixed(1)}%</div>`;
+  });
+  document.getElementById('ov-concentration').innerHTML = `
+    <div class="conc-row">
+      <div class="conc-bar">${segHtml}</div>
+    </div>
+    <div class="conc-legend">${legendHtml}</div>
+    <div style="margin-top:14px;">
+      <span class="badge ${flagged?'risk':'ok'}">${flagged?'Concentration risk':'Diversified'}</span>
+      <span style="font-size:12.5px; color:var(--text-secondary); margin-left:8px;">
+        Top-2 buyers (<b style="color:var(--text-primary)">${top2.map(b=>b.name).join(' + ')}</b>) = <b class="num" style="color:var(--text-primary)">${top2Pct.toFixed(1)}%</b> of total revenue, Jan–Jul.
+        ${flagged ? 'This business runs highly concentrated — losing either buyer would be existential.' : ''}
+      </span>
+    </div>
+  `;
+
+  // Top 3 open anomalies
+  const sevRank = {High:4, Med:3, Low:2, Info:1};
+  const openOnes = DATA.anomalies.filter(a => a.status !== 'explained');
+  openOnes.sort((a,b)=> sevRank[b.severity]-sevRank[a.severity]);
+  const top3 = openOnes.slice(0,3);
+  document.getElementById('ov-anomalies').innerHTML = top3.map(a => `
+    <div class="anom-mini-row">
+      <span class="sev-dot ${a.severity}"></span>
+      <div class="anom-mini-text"><b>${a.severity} · ${a.type}</b><br/>${a.detail}</div>
+    </div>
+  `).join('');
+  document.querySelectorAll('#ov-anomalies .anom-mini-row').forEach(row => row.addEventListener('click', ()=> goToTab('anomalies')));
+}
+
+/* ============================================================================
+   P&L TAB
+   ============================================================================ */
+function populateMonthSelects(){
+  ['pnl-from','pnl-to','ar-from','ar-to'].forEach(id=>{
+    const sel = document.getElementById(id);
+    sel.innerHTML = MONTHS.map((m,i)=> `<option value="${i}">${m}</option>`).join('');
+  });
+  document.getElementById('pnl-from').value = state.pnlFrom;
+  document.getElementById('pnl-to').value = state.pnlTo;
+  document.getElementById('ar-from').value = state.arFrom;
+  document.getElementById('ar-to').value = state.arTo;
+}
+document.getElementById('pnl-from').addEventListener('change', e=>{ state.pnlFrom = Math.min(+e.target.value, state.pnlTo); document.getElementById('pnl-from').value = state.pnlFrom; renderPnL(); });
+document.getElementById('pnl-to').addEventListener('change', e=>{ state.pnlTo = Math.max(+e.target.value, state.pnlFrom); document.getElementById('pnl-to').value = state.pnlTo; renderPnL(); });
+
+const avestorToggleEl = document.getElementById('pnl-avestor-toggle');
+avestorToggleEl.addEventListener('click', ()=>{
+  state.excludeAvestor = !state.excludeAvestor;
+  avestorToggleEl.classList.toggle('on', state.excludeAvestor);
+  renderPnL();
+});
+
+function pnlMonths(){
+  const arr = [];
+  for(let i=state.pnlFrom;i<=state.pnlTo;i++) arr.push(MONTHS[i]);
+  return arr;
+}
+
+function buildLineRow(label, byMonth, monthsInRange, opts){
+  opts = opts || {};
+  const cells = monthsInRange.map(m=>{
+    const v = byMonth[m] || 0;
+    const cls = v < 0 ? 'neg' : (v > 0 ? '' : '');
+    return `<td class="num ${cls} ${opts.excluded?'excluded':''}">${fmtMoney(v)}</td>`;
+  }).join('');
+  const total = monthsInRange.reduce((s,m)=>s+(byMonth[m]||0),0);
+  const totalCls = total < 0 ? 'neg' : '';
+  const labelClasses = [opts.indent ? 'indent' : '', opts.drillKey ? 'rowlabel' : ''].filter(Boolean).join(' ');
+  return `<tr class="${opts.rowClass||''}" data-drill="${opts.drillKey||''}">
+    <td class="${labelClasses}" data-name="${label}">${label}</td>
+    ${cells}
+    <td class="num ${totalCls} ${opts.excluded?'excluded':''}" style="font-weight:600;">${fmtMoney(total)}</td>
+  </tr>`;
+}
+
+function renderPnL(){
+  const monthsInRange = pnlMonths();
+  const ex = state.excludeAvestor;
+  const revSeriesAll = revenueSeries(ex), grossSeriesAll = grossSeries(ex), netSeriesAll = netSeries(ex);
+  const grossPctAll = grossPctSeries(ex), netPctAll = netPctSeries(ex);
+  const rangeIdx = [];
+  for(let i=state.pnlFrom;i<=state.pnlTo;i++) rangeIdx.push(i);
+
+  // KPI summary for filtered range (reflecting toggle)
+  const revTotal = rangeIdx.reduce((s,i)=>s+revSeriesAll[i],0);
+  const cogsTotal = rangeIdx.reduce((s,i)=>s+DATA.total_cogs[MONTHS[i]],0);
+  const grossTotal = rangeIdx.reduce((s,i)=>s+grossSeriesAll[i],0);
+  const netTotal = rangeIdx.reduce((s,i)=>s+netSeriesAll[i],0);
+  const grossMarginTotal = revTotal!==0 ? grossTotal/revTotal*100 : 0;
+  const netMarginTotal = revTotal!==0 ? netTotal/revTotal*100 : 0;
+
+  document.getElementById('pnl-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Revenue</div><div class="value num">${fmtMoney(revTotal)}</div><div class="sub">${MONTHS[state.pnlFrom]} – ${MONTHS[state.pnlTo]}</div></div>
+    <div class="kpi"><div class="label">Total COGS</div><div class="value num neg">${fmtMoney(cogsTotal)}</div></div>
+    <div class="kpi"><div class="label">Gross Profit</div><div class="value num ${grossTotal<0?'neg':''}">${fmtMoney(grossTotal)}</div><div class="sub">Margin ${fmtPct(grossMarginTotal)}</div></div>
+    <div class="kpi"><div class="label">Net Profit</div><div class="value num ${netTotal<0?'neg':''}">${fmtMoney(netTotal)}</div><div class="sub">Margin ${fmtPct(netMarginTotal)}</div></div>
+    <div class="kpi"><div class="label">Avestor Consulting</div><div class="value num" style="font-size:16px;">${ex?'Excluded':'Included'}</div><div class="sub">${ex?'Toggle live-recomputes Rev / GP / NP':'Toggle to isolate arbitrage economics'}</div></div>
+  `;
+
+  // ---- Build table ----
+  const head = `<thead><tr>
+    <th>Line Item</th>
+    ${monthsInRange.map(m=>`<th>${monthShort(m)} '${m.split(' ')[1].slice(2)}</th>`).join('')}
+    <th class="sortable" id="pnl-total-header">Total <span class="arrow">▲▼</span></th>
+  </tr></thead>`;
+
+  let body = '<tbody>';
+
+  // Revenue by buyer
+  body += `<tr class="section-head"><td colspan="${monthsInRange.length+2}">Revenue by Buyer</td></tr>`;
+  let buyers = Object.entries(DATA.revenue_by_buyer).map(([name,byMonth])=>({name,byMonth, total: rangeIdx.reduce((s,i)=>s+(byMonth[MONTHS[i]]||0),0)})).filter(b=>b.total!==0);
+  if(state.pnlSectionSort['revenue']){
+    buyers.sort((a,b)=> state.pnlSectionSort['revenue']==='asc' ? a.total-b.total : b.total-a.total);
+  }
+  buyers.forEach(b=>{
+    const excluded = ex && b.name === 'Avestor Consulting';
+    body += buildLineRow(b.name, b.byMonth, monthsInRange, { indent:true, drillKey:'buyer:'+b.name, excluded });
+  });
+  body += buildLineRow('Total Revenue', Object.fromEntries(MONTHS.map((m,i)=>[m, revSeriesAll[i]])), monthsInRange, { rowClass:'subtotal' });
+
+  // COGS by publisher
+  body += `<tr class="section-head"><td colspan="${monthsInRange.length+2}">COGS by Publisher</td></tr>`;
+  let pubs = Object.entries(DATA.cogs_by_publisher).map(([name,byMonth])=>({name,byMonth, total: rangeIdx.reduce((s,i)=>s+(byMonth[MONTHS[i]]||0),0)})).filter(p=>p.total!==0);
+  if(state.pnlSectionSort['cogs']){
+    pubs.sort((a,b)=> state.pnlSectionSort['cogs']==='asc' ? a.total-b.total : b.total-a.total);
+  }
+  pubs.forEach(p=>{
+    body += buildLineRow(p.name, p.byMonth, monthsInRange, { indent:true, drillKey:'publisher:'+p.name });
+  });
+  body += buildLineRow('Total COGS', DATA.total_cogs, monthsInRange, { rowClass:'subtotal' });
+
+  // Gross profit / margin
+  body += buildLineRow('Gross Profit', Object.fromEntries(MONTHS.map((m,i)=>[m, grossSeriesAll[i]])), monthsInRange, { rowClass:'grand' });
+  const gmRow = monthsInRange.map(m=>{ const i = MONTHS.indexOf(m); return `<td class="num">${fmtPct(grossPctAll[i])}</td>`; }).join('');
+  body += `<tr><td class="indent">Gross Margin %</td>${gmRow}<td class="num">${fmtPct(grossMarginTotal)}</td></tr>`;
+
+  // OpEx by category (grouped, expandable)
+  body += `<tr class="section-head"><td colspan="${monthsInRange.length+2}">Operating Expenses</td></tr>`;
+  OPEX_GROUPS.forEach(group=>{
+    const groupByMonth = {};
+    MONTHS.forEach(m => { groupByMonth[m] = group.items.reduce((s,k)=> s + (DATA.opex_by_category[k][m]||0), 0); });
+    if(group.standalone){
+      const itemTotal = rangeIdx.reduce((s,i)=>s+(DATA.opex_by_category[group.items[0]][MONTHS[i]]||0),0);
+      if(itemTotal===0) return;
+      body += buildLineRow(group.name, DATA.opex_by_category[group.items[0]], monthsInRange, { drillKey:'opex:'+group.items[0] });
+    } else {
+      const groupTotal = rangeIdx.reduce((s,i)=>s+groupByMonth[MONTHS[i]],0);
+      if(groupTotal===0) return;
+      const expanded = !!state.pnlExpanded[group.name];
+      const cells = monthsInRange.map(m=>`<td class="num ${groupByMonth[m]<0?'neg':''}">${fmtMoney(groupByMonth[m])}</td>`).join('');
+      body += `<tr class="subtotal group-toggle" data-group="${group.name}">
+        <td class="rowlabel"><span class="caret">${expanded?'▾':'▸'}</span>${group.name}</td>
+        ${cells}
+        <td class="num" style="font-weight:700;">${fmtMoney(groupTotal)}</td>
+      </tr>`;
+      if(expanded){
+        group.items.filter(k=>rangeIdx.reduce((s,i)=>s+(DATA.opex_by_category[k][MONTHS[i]]||0),0)!==0).forEach(k=>{
+          body += buildLineRow(k, DATA.opex_by_category[k], monthsInRange, { indent:true, drillKey:'opex:'+k });
+        });
+      }
+    }
+  });
+  body += buildLineRow('Total OpEx', DATA.total_opex, monthsInRange, { rowClass:'subtotal' });
+
+  // Net profit / margin
+  body += buildLineRow('Net Profit', Object.fromEntries(MONTHS.map((m,i)=>[m, netSeriesAll[i]])), monthsInRange, { rowClass:'grand' });
+  const nmRow = monthsInRange.map(m=>{ const i = MONTHS.indexOf(m); return `<td class="num">${fmtPct(netPctAll[i])}</td>`; }).join('');
+  body += `<tr><td class="indent">Net Margin %</td>${nmRow}<td class="num">${fmtPct(netMarginTotal)}</td></tr>`;
+
+  body += '</tbody>';
+
+  const table = document.getElementById('pnl-table');
+  table.innerHTML = head + body;
+
+  // Wire drill-down clicks
+  table.querySelectorAll('td.rowlabel').forEach(td=>{
+    td.addEventListener('click', ()=>{
+      const tr = td.closest('tr');
+      if(tr.classList.contains('group-toggle')){
+        const gname = tr.dataset.group;
+        state.pnlExpanded[gname] = !state.pnlExpanded[gname];
+        renderPnL();
+        return;
+      }
+      const drillKey = tr.dataset.drill;
+      if(!drillKey) return;
+      const [kind, name] = drillKey.split(/:(.+)/);
+      let byMonth, sub;
+      if(kind === 'buyer'){ byMonth = DATA.revenue_by_buyer[name]; sub = 'Revenue by buyer, month-by-month (cash basis)'; }
+      else if(kind === 'publisher'){ byMonth = DATA.cogs_by_publisher[name]; sub = 'COGS by publisher, month-by-month (cash basis)'; }
+      else if(kind === 'opex'){ byMonth = DATA.opex_by_category[name]; sub = 'Operating expense, month-by-month (cash basis)'; }
+      if(byMonth) openDrilldown(name, byMonth, { sub });
+    });
+  });
+
+  // Sort-by-total header (applies to whichever section was last interacted; default sorts revenue+cogs together)
+  const totalHeader = document.getElementById('pnl-total-header');
+  if(totalHeader){
+    totalHeader.addEventListener('click', ()=>{
+      const cur = state.pnlSectionSort['revenue'];
+      const next = cur === 'desc' ? 'asc' : 'desc';
+      state.pnlSectionSort['revenue'] = next;
+      state.pnlSectionSort['cogs'] = next;
+      renderPnL();
+    });
+  }
+}
+
+/* ============================================================================
+   ACCRUAL & A/R TAB
+   ============================================================================ */
+document.getElementById('ar-from').addEventListener('change', e=>{ state.arFrom = Math.min(+e.target.value, state.arTo); document.getElementById('ar-from').value = state.arFrom; renderAccrual(); });
+document.getElementById('ar-to').addEventListener('change', e=>{ state.arTo = Math.max(+e.target.value, state.arFrom); document.getElementById('ar-to').value = state.arTo; renderAccrual(); });
+
+function renderAccrual(){
+  // Wave is not connected — no invoice-level data exists. KPI tiles reflect that
+  // honestly rather than fabricating figures.
+  document.getElementById('ar-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Invoiced</div><div class="value" style="font-size:18px; color:var(--text-muted);">Not connected</div><div class="sub">Wave integration pending</div></div>
+    <div class="kpi"><div class="label">Total Collected</div><div class="value" style="font-size:18px; color:var(--text-muted);">Not connected</div><div class="sub">Wave integration pending</div></div>
+    <div class="kpi"><div class="label">Total Outstanding</div><div class="value" style="font-size:18px; color:var(--text-muted);">Not connected</div><div class="sub">Wave integration pending</div></div>
+  `;
+
+  const buckets = [
+    { key:'current', label:'Current', cls:'current' },
+    { key:'d1_30', label:'1–30 Days', cls:'b1' },
+    { key:'d31_60', label:'31–60 Days', cls:'b2' },
+    { key:'d61plus', label:'61–90+ Days', cls:'b3' },
+  ];
+  document.getElementById('ar-aging').innerHTML = buckets.map(b => `
+    <div class="aging-tile ${b.cls}">
+      <div class="aging-label">${b.label}</div>
+      <div class="aging-value num" style="color:var(--text-muted);">—</div>
+    </div>
+  `).join('');
+
+  document.getElementById('ar-pending').innerHTML = DATA.pending_receivables.map(p => `
+    <div class="pending-item">
+      <div class="name">${p.buyer}<span class="note">${p.note}</span></div>
+      <div class="amt num">${fmtMoney(p.amount, {cents:false})}</div>
+    </div>
+  `).join('');
+}
+
+/* ============================================================================
+   PERSONAL TAB
+   ============================================================================ */
+function renderPersonal(){
+  const accounts = Object.entries(DATA.personal_by_account);
+  document.getElementById('pers-accounts').innerHTML = accounts.map(([name, byMonth])=>{
+    const total = sumObj(byMonth);
+    const lastVal = byMonth['Jul 2026'];
+    const pending = lastVal === 0;
+    const spark = sparklineSvg(MONTHS.map(m=>byMonth[m]), 140, 30, '#3987e5');
+    return `<div class="account-card">
+      <h4>${name}</h4>
+      <div class="acct-total num">${fmtMoney(total)} <span style="font-size:10.5px; color:var(--text-muted); font-weight:500;">total Jan–Jul</span></div>
+      <div class="sparkline-cell">${spark}</div>
+      ${pending ? `<div class="sub pending-note" style="margin-top:6px;">Jul: pending — not yet collected</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Money Left Over
+  const personalTotalByMonth = {};
+  MONTHS.forEach(m => { personalTotalByMonth[m] = accounts.reduce((s,[_,acct])=> s + (acct[m]||0), 0); });
+  const julPending = personalTotalByMonth['Jul 2026'] === 0;
+  const mloValues = MONTHS.map((m,i) => (i === MONTHS.length-1 && julPending) ? null : DATA.net_profit[m] - personalTotalByMonth[m]);
+
+  const chartMonths = julPending ? MONTHS.slice(0,-1) : MONTHS;
+  const chartValues = julPending ? mloValues.slice(0,-1) : mloValues;
+  renderBarChart(document.getElementById('pers-mlo-chart'), chartMonths, chartValues, { fmt:v=>fmtMoney(v,{cents:true}), width:900, height:200 });
+
+  let rows = '';
+  MONTHS.forEach((m,i)=>{
+    if(i === MONTHS.length-1 && julPending){
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num pending-cell" colspan="1">Pending — personal data not yet collected</td></tr>`;
+    } else {
+      const v = mloValues[i];
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${v<0?'mlo-neg':'mlo-pos'}">${fmtMoney(v)}</td></tr>`;
+    }
+  });
+  document.getElementById('pers-mlo-table').innerHTML = `<thead><tr><th style="text-align:left;">Month</th><th>Money Left Over</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('pers-note').textContent = DATA.notes.july_personal_expenses;
+}
+
+/* ============================================================================
+   ANOMALIES TAB
+   ============================================================================ */
+document.getElementById('anom-sev-filter').addEventListener('change', e=>{ state.anomSevFilter = e.target.value; renderAnomalies(); });
+document.getElementById('anom-status-filter').addEventListener('change', e=>{ state.anomStatusFilter = e.target.value; renderAnomalies(); });
+document.querySelectorAll('#anom-table th.sortable').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.sort;
+    if(state.anomSort.key === key){ state.anomSort.dir = state.anomSort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { state.anomSort = { key, dir: 'desc' }; }
+    renderAnomalies();
+  });
+});
+
+function renderAnomalies(){
+  const sevRank = {High:4, Med:3, Low:2, Info:1};
+  const statusRank = { open:5, pending:4, review:3, monitor:2, explained:0 };
+  let rows = DATA.anomalies.filter(a =>
+    (state.anomSevFilter === 'all' || a.severity === state.anomSevFilter) &&
+    (state.anomStatusFilter === 'all' || a.status === state.anomStatusFilter)
+  );
+
+  const { key, dir } = state.anomSort;
+  const mul = dir === 'asc' ? 1 : -1;
+  if(key === 'default'){
+    // Open action items (anything not "explained") float above resolved ones;
+    // within each of those two bands, sort by severity, then by status rank.
+    rows.sort((a,b)=>{
+      const aResolved = a.status === 'explained' ? 1 : 0;
+      const bResolved = b.status === 'explained' ? 1 : 0;
+      if(aResolved !== bResolved) return aResolved - bResolved;
+      return (sevRank[b.severity]-sevRank[a.severity]) || (statusRank[b.status]-statusRank[a.status]);
+    });
+  } else if(key === 'severity'){
+    rows.sort((a,b)=> mul*(sevRank[a.severity]-sevRank[b.severity]));
+  } else if(key === 'status'){
+    rows.sort((a,b)=> mul*(statusRank[a.status]-statusRank[b.status]));
+  } else if(key === 'date'){
+    rows.sort((a,b)=> mul*(new Date(a.date)-new Date(b.date)));
+  } else if(key === 'impact'){
+    rows.sort((a,b)=> mul*(a.impact-b.impact));
+  }
+
+  document.getElementById('anom-tbody').innerHTML = rows.map(a => `
+    <tr class="${a.status==='explained'?'explained':''}">
+      <td class="num">${a.date}</td>
+      <td><span class="sev-pill ${a.severity}">${a.severity}</span></td>
+      <td>${a.type}</td>
+      <td style="max-width:420px; white-space:normal;">${a.detail}</td>
+      <td class="num" style="text-align:right;">${a.impact ? fmtMoney(a.impact, {cents:true}) : '—'}</td>
+      <td><span class="status-pill ${a.status}">${a.status}</span></td>
+    </tr>
+  `).join('');
+
+  // update header arrows — clear stale arrows first so only the active sort column shows one
+  document.querySelectorAll('#anom-table th.sortable').forEach(th=>{
+    const baseLabel = (th.dataset.label || th.textContent.replace(/\s*[↑↓]\s*$/,'').trim());
+    th.dataset.label = baseLabel;
+    if(th.dataset.sort === state.anomSort.key){
+      th.textContent = baseLabel + ' ' + (state.anomSort.dir==='asc'?'↑':'↓');
+    } else {
+      th.textContent = baseLabel;
+    }
+  });
+}
+
+/* ============================================================================
+   INIT
+   ============================================================================ */
+function init(){
+  populateMonthSelects();
+  renderOverview();
+  renderPnL();
+  renderAccrual();
+  renderPersonal();
+  renderAnomalies();
+}
+init();
+</script>
 </body>
 </html>
