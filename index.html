@@ -1258,13 +1258,23 @@ async function sendChatMessage(){
       headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({ message: text, history: chatHistory.slice(0,-1) })
     });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok){
+      // Surface the server's actual error text, not just the HTTP status.
+      const raw = data.error || ('HTTP ' + res.status);
+      throw new Error(raw);
+    }
     thinking.textContent = data.reply;
     chatHistory.push({ role:'assistant', content: data.reply });
   } catch(err) {
-    thinking.textContent = 'Something went wrong reaching the chat backend (' + err.message + '). Check that the server is running and ANTHROPIC_API_KEY is set.';
-    document.getElementById('chat-empty-msg').textContent = err.message;
+    let friendly = err.message;
+    if(/usage limit/i.test(friendly)){
+      friendly = 'Anthropic API usage limit reached for this key. ' + friendly;
+    } else if(/ANTHROPIC_API_KEY is not set/i.test(friendly)){
+      friendly = 'Server has no API key configured — set ANTHROPIC_API_KEY in Railway’s Variables tab.';
+    }
+    thinking.textContent = 'Chat backend error: ' + friendly;
+    document.getElementById('chat-empty-msg').textContent = friendly;
     document.getElementById('chat-empty').style.display = '';
   } finally {
     input.disabled = false;
