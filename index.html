@@ -1036,6 +1036,34 @@ function renderPnL(){
   const nmRow = monthsInRange.map(m=>{ const i = MONTHS.indexOf(m); return `<td class="num">${fmtPct(netPctAll[i])}</td>`; }).join('');
   body += `<tr><td class="indent">Net Margin %</td>${nmRow}<td class="num">${fmtPct(netMarginTotal)}</td></tr>`;
 
+  // Personal + Money Left Over (mirrors the original workbook's single P&L + Personal sheet)
+  const personalTotalByMonth = {};
+  MONTHS.forEach(m => { personalTotalByMonth[m] = Object.values(DATA.personal_by_account).reduce((s,acct)=> s + (acct[m]||0), 0); });
+  const julPending = personalTotalByMonth['Jul 2026'] === 0;
+
+  body += `<tr class="section-head"><td colspan="${monthsInRange.length+2}">Personal (for Money Left Over)</td></tr>`;
+
+  const persCells = monthsInRange.map(m=>{
+    if(julPending && m === 'Jul 2026') return `<td class="num pending-cell">Pending</td>`;
+    const v = personalTotalByMonth[m] || 0;
+    return `<td class="num">${v===0?'—':fmtMoney(v)}</td>`;
+  }).join('');
+  const persTotal = monthsInRange.reduce((s,m)=> s + ((julPending && m==='Jul 2026') ? 0 : (personalTotalByMonth[m]||0)), 0);
+  body += `<tr><td class="indent">Personal Expenses</td>${persCells}<td class="num" style="font-weight:600;">${fmtMoney(persTotal)}</td></tr>`;
+
+  const mloCells = monthsInRange.map(m=>{
+    if(julPending && m === 'Jul 2026') return `<td class="num pending-cell">Pending</td>`;
+    const i = MONTHS.indexOf(m);
+    const v = netSeriesAll[i] - personalTotalByMonth[m];
+    return `<td class="num ${v<0?'neg':''}">${fmtMoney(v)}</td>`;
+  }).join('');
+  const mloTotal = monthsInRange.reduce((s,m)=>{
+    if(julPending && m==='Jul 2026') return s;
+    const i = MONTHS.indexOf(m);
+    return s + (netSeriesAll[i] - personalTotalByMonth[m]);
+  }, 0);
+  body += `<tr class="grand"><td>Money Left Over</td>${mloCells}<td class="num ${mloTotal<0?'neg':''}" style="font-weight:700;">${fmtMoney(mloTotal)}</td></tr>`;
+
   body += '</tbody>';
 
   const table = document.getElementById('pnl-table');
