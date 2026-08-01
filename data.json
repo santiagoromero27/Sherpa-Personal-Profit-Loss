@@ -16,7 +16,7 @@
       "Apr 2026": 0,
       "May 2026": 1130.0,
       "Jun 2026": 2430.0,
-      "Jul 2026": 3160.0
+      "Jul 2026": 4000.0
     },
     "Wire & Other Income": {
       "Jan 2026": 0,
@@ -34,7 +34,7 @@
       "Apr 2026": 2244.0,
       "May 2026": 3332.0,
       "Jun 2026": 2261.0,
-      "Jul 2026": 1088.0
+      "Jul 2026": 2121.0
     },
     "TrueChoice Coverage": {
       "Jan 2026": 0,
@@ -89,7 +89,7 @@
     "Apr 2026": 6699.18,
     "May 2026": 4462.0,
     "Jun 2026": 6711.0,
-    "Jul 2026": 4248.0
+    "Jul 2026": 6121.0
   },
   "cogs_by_publisher": {
     "FlexMarketing": {
@@ -108,7 +108,7 @@
       "Apr 2026": 0,
       "May 2026": 0,
       "Jun 2026": -380.0,
-      "Jul 2026": -3075.31
+      "Jul 2026": -3475.31
     },
     "Brokercalls LLC": {
       "Jan 2026": 0,
@@ -253,7 +253,7 @@
     "Apr 2026": -2418.43,
     "May 2026": -1656.0,
     "Jun 2026": -2828.0,
-    "Jul 2026": -3500.31
+    "Jul 2026": -3900.31
   },
   "gross_profit": {
     "Jan 2026": -424.35,
@@ -262,7 +262,7 @@
     "Apr 2026": 4280.75,
     "May 2026": 2806.0,
     "Jun 2026": 3883.0,
-    "Jul 2026": 747.69
+    "Jul 2026": 2220.69
   },
   "gross_margin_pct": {
     "Jan 2026": -3.1,
@@ -271,7 +271,7 @@
     "Apr 2026": 63.9,
     "May 2026": 62.9,
     "Jun 2026": 57.9,
-    "Jul 2026": 17.6
+    "Jul 2026": 36.3
   },
   "opex_by_category": {
     "Anthropic / Claude": {
@@ -299,7 +299,7 @@
       "Apr 2026": -8.91,
       "May 2026": -13.89,
       "Jun 2026": -23.08,
-      "Jul 2026": 0
+      "Jul 2026": -22.2
     },
     "Card Interest & Foreign Transaction Fees": {
       "Jan 2026": -0.09,
@@ -588,7 +588,7 @@
     "Apr 2026": -773.51,
     "May 2026": -1561.51,
     "Jun 2026": -1074.58,
-    "Jul 2026": -590.35
+    "Jul 2026": -612.55
   },
   "net_profit": {
     "Jan 2026": -649.47,
@@ -597,7 +597,7 @@
     "Apr 2026": 3507.24,
     "May 2026": 1244.49,
     "Jun 2026": 2808.42,
-    "Jul 2026": 157.34
+    "Jul 2026": 1608.14
   },
   "net_margin_pct": {
     "Jan 2026": -4.7,
@@ -606,7 +606,7 @@
     "Apr 2026": 52.4,
     "May 2026": 27.9,
     "Jun 2026": 41.8,
-    "Jul 2026": 3.7
+    "Jul 2026": 26.3
   },
   "personal_by_account": {
     "Personal Checking": {
@@ -616,7 +616,7 @@
       "Apr 2026": 2124.93,
       "May 2026": 2177.75,
       "Jun 2026": 891.85,
-      "Jul 2026": 0
+      "Jul 2026": 1990.4
     },
     "Chase Freedom Unlimited": {
       "Jan 2026": 693.64,
@@ -625,7 +625,7 @@
       "Apr 2026": 998.99,
       "May 2026": 990.45,
       "Jun 2026": 949.38,
-      "Jul 2026": 0
+      "Jul 2026": 1632.55
     },
     "Chase Freedom Flex": {
       "Jan 2026": 50.69,
@@ -638,11 +638,6 @@
     }
   },
   "pending_receivables": [
-    {
-      "buyer": "Faith Contact Center \u2014 expected soon",
-      "amount": 840,
-      "note": "Not yet posted as of 2026-07-30"
-    },
     {
       "buyer": "Avestor Consulting \u2014 expected soon",
       "amount": 969,
@@ -717,23 +712,23 @@
       "date": "2026-07-30",
       "severity": "Info",
       "type": "Expected Receivable",
-      "detail": "Expecting a payment from Faith Contact Center soon. Amount: ~$840. NOT yet posted as of 2026-07-30 \u2014 only $780, $1,490, $890 have posted in July, total $3,160.",
+      "detail": "Faith Contact Center $840 posted Jul 29, 2026 -- resolved as expected.",
       "impact": 840,
-      "status": "pending",
-      "initialDone": false
+      "status": "explained",
+      "initialDone": true
     },
     {
       "date": "2026-07-30",
-      "severity": "Info",
+      "severity": "Med",
       "type": "Expected Receivable",
-      "detail": "Expecting a ~$969 payment from Avestor Consulting soon. NOT yet posted as of 2026-07-30 \u2014 only the $1,088 Jul 13 payment has posted this month.",
+      "detail": "Avestor Consulting paid $1,033 on Jul 30, 2026 -- NOT the $969 originally expected. Unconfirmed whether this fully covers the $969 expectation, is a different/larger invoice, or the $969 is still separately outstanding. Needs confirmation.",
       "impact": 969,
-      "status": "pending",
+      "status": "review",
       "initialDone": false
     }
   ],
   "notes": {
-    "july_personal_expenses": "Not yet collected for July \u2014 shown as 0, treat as pending not a real $0 month",
+    "july_personal_expenses": "Collected 2026-08-01 from Era (Personal Checking excl. a ,150.43 internal CC-payment transfer).",
     "accrual_ar": "Wave not yet connected \u2014 Accrual/A&R tab should render an empty/not-connected state, no fake invoice data"
   }
 }

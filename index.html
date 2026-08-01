@@ -1144,16 +1144,21 @@ function renderAccrual(){
    ============================================================================ */
 function renderPersonal(){
   const accounts = Object.entries(DATA.personal_by_account);
+
+  // Whether July's personal data has been collected at all is an aggregate question —
+  // an individual account's own $0 (e.g. a card that just wasn't used that month) must
+  // not be mistaken for "not yet collected."
+  const aggJulTotal = accounts.reduce((s,[_,acct])=> s + (acct['Jul 2026']||0), 0);
+  const julDataPending = aggJulTotal === 0;
+
   document.getElementById('pers-accounts').innerHTML = accounts.map(([name, byMonth])=>{
     const total = sumObj(byMonth);
-    const lastVal = byMonth['Jul 2026'];
-    const pending = lastVal === 0;
     const spark = sparklineSvg(MONTHS.map(m=>byMonth[m]), 140, 30, '#3987e5');
     return `<div class="account-card">
       <h4>${name}</h4>
       <div class="acct-total num">${fmtMoney(total)} <span style="font-size:10.5px; color:var(--text-muted); font-weight:500;">total Jan–Jul</span></div>
       <div class="sparkline-cell">${spark}</div>
-      ${pending ? `<div class="sub pending-note" style="margin-top:6px;">Jul: pending — not yet collected</div>` : ''}
+      ${julDataPending ? `<div class="sub pending-note" style="margin-top:6px;">Jul: pending — not yet collected</div>` : ''}
     </div>`;
   }).join('');
 
