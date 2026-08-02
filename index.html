@@ -339,6 +339,15 @@
     <section class="tab-panel active" id="tab-overview">
       <div class="kpi-row" id="ov-kpis"></div>
 
+      <div class="card">
+        <div class="card-head">
+          <h3>Account Balances</h3>
+          <span class="meta" id="ov-bal-asof"></span>
+        </div>
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px;" id="ov-bal-kpis"></div>
+        <div class="pending-card" id="ov-bal-adjusted"></div>
+      </div>
+
       <div class="grid-2">
         <div>
           <div class="card">
@@ -838,6 +847,52 @@ function renderOverview(){
     </div>
   `;
   document.getElementById('ov-kpis').innerHTML = kpiHtml;
+
+  // Account balances (live, current — not the monthly cash-basis P&L above)
+  const bal = DATA.account_balances;
+  const momAdj = DATA.moms_investment_adjustment;
+  document.getElementById('ov-bal-asof').textContent = `As of ${bal.as_of}`;
+  document.getElementById('ov-bal-kpis').innerHTML = `
+    <div class="kpi">
+      <div class="label">Total Cash (Checking)</div>
+      <div class="value num ${bal.total_cash<0?'neg':''}">${fmtMoney(bal.total_cash)}</div>
+      <div class="sub">Across ${bal.accounts.filter(a=>a.type==='checking').length} checking accounts</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Card Balances Owed</div>
+      <div class="value num neg">${fmtMoney(-bal.total_card_balances)}</div>
+      <div class="sub">Across ${bal.accounts.filter(a=>a.type==='credit_card').length} credit cards</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Net Cash Position</div>
+      <div class="value num ${bal.net_cash_position<0?'neg':''}">${fmtMoney(bal.net_cash_position)}</div>
+      <div class="sub">Cash minus card balances</div>
+    </div>
+  `;
+  const totalCashExcl = bal.total_cash - momAdj.assumed_still_in_accounts;
+  const netExcl = bal.net_cash_position - momAdj.assumed_still_in_accounts;
+  document.getElementById('ov-bal-adjusted').innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+      <div>
+        <div style="font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--warn); margin-bottom:4px;">Excluding Mom's ${fmtMoney(momAdj.total_reported,{cents:false})} Investment</div>
+        <div style="font-size:11.5px; color:var(--text-secondary); max-width:560px;">
+          $${momAdj.moved_to_long_term_portfolio.toLocaleString()} of that already moved out to a long-term investment account (the May 13 transfer to Johanna), so it's not sitting in any balance above.
+          The remaining $${momAdj.assumed_still_in_accounts.toLocaleString()} is assumed still in your accounts and subtracted below.
+          <b>Not verified in bank data</b> — no incoming transfer of this size has been found; this is your own reported figure.
+        </div>
+      </div>
+      <div style="display:flex; gap:24px;">
+        <div>
+          <div class="label" style="font-size:11px; color:var(--text-muted);">Total Cash w/o Mom's $</div>
+          <div class="value num ${totalCashExcl<0?'neg':''}" style="font-size:20px;">${fmtMoney(totalCashExcl)}</div>
+        </div>
+        <div>
+          <div class="label" style="font-size:11px; color:var(--text-muted);">Net Cash w/o Mom's $</div>
+          <div class="value num ${netExcl<0?'neg':''}" style="font-size:20px;">${fmtMoney(netExcl)}</div>
+        </div>
+      </div>
+    </div>
+  `;
 
   // Trend chart
   renderLineChart(document.getElementById('ov-trend-chart'), MONTHS, [

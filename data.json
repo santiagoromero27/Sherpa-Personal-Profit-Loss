@@ -637,6 +637,26 @@
       "Jul 2026": 0
     }
   },
+  "account_balances": {
+    "as_of": "2026-08-02",
+    "accounts": [
+      { "name": "BUS COMPLETE CHK", "type": "checking", "balance": 14020.63 },
+      { "name": "Personal Checking", "type": "checking", "balance": -2.63 },
+      { "name": "Chase Freedom Flex", "type": "credit_card", "balance": 0.00 },
+      { "name": "Chase Freedom Unlimited", "type": "credit_card", "balance": 1780.01 },
+      { "name": "Ink Business Cash (S. Romero)", "type": "credit_card", "balance": 4207.75 }
+    ],
+    "total_cash": 14018.00,
+    "total_card_balances": 5987.76,
+    "net_cash_position": 8030.24
+  },
+  "moms_investment_adjustment": {
+    "total_reported": 10000,
+    "moved_to_long_term_portfolio": 3000,
+    "assumed_still_in_accounts": 7000,
+    "verified_in_bank_data": false,
+    "note": "Santiago reports his mom gave him ~$10k total; the $3k long-term-investment portion lines up with the confirmed May 13, 2026 $3,000 transfer to Johanna. No incoming transfer from Johanna matching any part of the $10k was found in any of the 5 connected accounts, back to mid-2024 -- this adjustment rests on Santiago's own figure, not on verified bank data."
+  },
   "rent_to_johanna": {
     "Jan 2026": 1000,
     "Feb 2026": 1010,
