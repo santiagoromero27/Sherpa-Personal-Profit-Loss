@@ -1038,18 +1038,29 @@ function renderPnL(){
 
   // Personal + Money Left Over (mirrors the original workbook's single P&L + Personal sheet)
   const personalTotalByMonth = {};
-  MONTHS.forEach(m => { personalTotalByMonth[m] = Object.values(DATA.personal_by_account).reduce((s,acct)=> s + (acct[m]||0), 0); });
+  MONTHS.forEach(m => { personalTotalByMonth[m] = Object.values(DATA.personal_by_account).reduce((s,acct)=> s + (acct[m]||0), 0) + (DATA.rent_to_johanna_business_paid?.[m] || 0); });
+  const rentByMonth = DATA.rent_to_johanna || {};
+  const otherPersonalByMonth = {};
+  MONTHS.forEach(m => { otherPersonalByMonth[m] = personalTotalByMonth[m] - (rentByMonth[m] || 0); });
   const julPending = personalTotalByMonth['Jul 2026'] === 0;
 
   body += `<tr class="section-head"><td colspan="${monthsInRange.length+2}">Personal (for Money Left Over)</td></tr>`;
 
-  const persCells = monthsInRange.map(m=>{
+  const rentCells = monthsInRange.map(m=>{
     if(julPending && m === 'Jul 2026') return `<td class="num pending-cell">Pending</td>`;
-    const v = personalTotalByMonth[m] || 0;
+    const v = rentByMonth[m] || 0;
     return `<td class="num">${v===0?'—':fmtMoney(v)}</td>`;
   }).join('');
-  const persTotal = monthsInRange.reduce((s,m)=> s + ((julPending && m==='Jul 2026') ? 0 : (personalTotalByMonth[m]||0)), 0);
-  body += `<tr><td class="indent">Personal Expenses</td>${persCells}<td class="num" style="font-weight:600;">${fmtMoney(persTotal)}</td></tr>`;
+  const rentTotal = monthsInRange.reduce((s,m)=> s + ((julPending && m==='Jul 2026') ? 0 : (rentByMonth[m]||0)), 0);
+  body += `<tr><td class="indent">Rent (to Johanna)</td>${rentCells}<td class="num" style="font-weight:600;">${fmtMoney(rentTotal)}</td></tr>`;
+
+  const otherCells = monthsInRange.map(m=>{
+    if(julPending && m === 'Jul 2026') return `<td class="num pending-cell">Pending</td>`;
+    const v = otherPersonalByMonth[m] || 0;
+    return `<td class="num">${v===0?'—':fmtMoney(v)}</td>`;
+  }).join('');
+  const otherTotal = monthsInRange.reduce((s,m)=> s + ((julPending && m==='Jul 2026') ? 0 : (otherPersonalByMonth[m]||0)), 0);
+  body += `<tr><td class="indent">Other Personal Expenses</td>${otherCells}<td class="num" style="font-weight:600;">${fmtMoney(otherTotal)}</td></tr>`;
 
   const mloCells = monthsInRange.map(m=>{
     if(julPending && m === 'Jul 2026') return `<td class="num pending-cell">Pending</td>`;
@@ -1164,7 +1175,10 @@ function renderPersonal(){
 
   // Money Left Over
   const personalTotalByMonth = {};
-  MONTHS.forEach(m => { personalTotalByMonth[m] = accounts.reduce((s,[_,acct])=> s + (acct[m]||0), 0); });
+  MONTHS.forEach(m => { personalTotalByMonth[m] = accounts.reduce((s,[_,acct])=> s + (acct[m]||0), 0) + (DATA.rent_to_johanna_business_paid?.[m] || 0); });
+  const rentByMonth = DATA.rent_to_johanna || {};
+  const otherPersonalByMonth = {};
+  MONTHS.forEach(m => { otherPersonalByMonth[m] = personalTotalByMonth[m] - (rentByMonth[m] || 0); });
   const julPending = personalTotalByMonth['Jul 2026'] === 0;
   const mloValues = MONTHS.map((m,i) => (i === MONTHS.length-1 && julPending) ? null : DATA.net_profit[m] - personalTotalByMonth[m]);
 
@@ -1177,13 +1191,13 @@ function renderPersonal(){
     const netVal = DATA.net_profit[m];
     const netCls = netVal < 0 ? 'mlo-neg' : '';
     if(i === MONTHS.length-1 && julPending){
-      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num pending-cell">Pending</td><td class="num pending-cell">Pending — personal data not yet collected</td></tr>`;
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num pending-cell">Pending</td><td class="num pending-cell">Pending</td><td class="num pending-cell">Pending — personal data not yet collected</td></tr>`;
     } else {
       const v = mloValues[i];
-      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num">${fmtMoney(personalTotalByMonth[m])}</td><td class="num ${v<0?'mlo-neg':'mlo-pos'}">${fmtMoney(v)}</td></tr>`;
+      rows += `<tr class="mlo-row"><td>${m}</td><td class="num ${netCls}">${fmtMoney(netVal)}</td><td class="num">${fmtMoney(rentByMonth[m]||0)}</td><td class="num">${fmtMoney(otherPersonalByMonth[m])}</td><td class="num ${v<0?'mlo-neg':'mlo-pos'}">${fmtMoney(v)}</td></tr>`;
     }
   });
-  document.getElementById('pers-mlo-table').innerHTML = `<thead><tr><th style="text-align:left;">Month</th><th>Net Profit</th><th>Personal Exp.</th><th>Money Left Over</th></tr></thead><tbody>${rows}</tbody>`;
+  document.getElementById('pers-mlo-table').innerHTML = `<thead><tr><th style="text-align:left;">Month</th><th>Net Profit</th><th>Rent (Johanna)</th><th>Other Personal</th><th>Money Left Over</th></tr></thead><tbody>${rows}</tbody>`;
   document.getElementById('pers-note').textContent = DATA.notes.july_personal_expenses;
 }
 

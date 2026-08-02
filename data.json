@@ -637,6 +637,24 @@
       "Jul 2026": 0
     }
   },
+  "rent_to_johanna": {
+    "Jan 2026": 1000,
+    "Feb 2026": 1010,
+    "Mar 2026": 0,
+    "Apr 2026": 1000,
+    "May 2026": 1000,
+    "Jun 2026": 0,
+    "Jul 2026": 1000
+  },
+  "rent_to_johanna_business_paid": {
+    "Jan 2026": 0,
+    "Feb 2026": 810,
+    "Mar 2026": 0,
+    "Apr 2026": 0,
+    "May 2026": 0,
+    "Jun 2026": 0,
+    "Jul 2026": 0
+  },
   "pending_receivables": [
     {
       "buyer": "Avestor Consulting \u2014 expected soon",
@@ -725,10 +743,38 @@
       "impact": 969,
       "status": "review",
       "initialDone": false
+    },
+    {
+      "date": "2026-08-02",
+      "severity": "Med",
+      "type": "Personal Expense Correction",
+      "detail": "Feb rent to Johanna ($810) was paid directly out of BUS COMPLETE CHK, not a tracked personal account -- it was missing from Personal Expenses entirely. Added on top of the $200 Zelle 'Mama' payment already inside Personal Checking's Feb total. Feb Money Left Over corrected from $2,187.22 to $1,377.22.",
+      "impact": 810,
+      "status": "explained",
+      "initialDone": true
+    },
+    {
+      "date": "2026-08-02",
+      "severity": "Med",
+      "type": "Data Gap",
+      "detail": "No rent-to-Johanna payment (Zelle 'Mama' or direct transfer) found in Mar or Jun 2026 in any connected account. Either rent wasn't paid those months, or it went through an untracked channel (cash, check, different account). Needs confirmation.",
+      "impact": 0,
+      "status": "review",
+      "initialDone": false
+    },
+    {
+      "date": "2026-08-02",
+      "severity": "Low",
+      "type": "Data Gap",
+      "detail": "May 13 $3,000 transfer to Johanna (BUS COMPLETE CHK) is excluded from Rent -- confirmed by Santiago as a contribution to an investment account, not a living expense. Not counted in Personal Expenses or Money Left Over either way.",
+      "impact": 3000,
+      "status": "explained",
+      "initialDone": true
     }
   ],
   "notes": {
     "july_personal_expenses": "Collected 2026-08-01 from Era (Personal Checking excl. a ,150.43 internal CC-payment transfer).",
-    "accrual_ar": "Wave not yet connected \u2014 Accrual/A&R tab should render an empty/not-connected state, no fake invoice data"
+    "accrual_ar": "Wave not yet connected \u2014 Accrual/A&R tab should render an empty/not-connected state, no fake invoice data",
+    "rent_to_johanna": "Rent is paid via Zelle labeled 'Mama' from Personal Checking ($1,000 most months) plus, in Feb, an additional $810 paid directly from BUS COMPLETE CHK (business account) that was previously missing from Personal Expenses entirely. No matching payment found in Mar or Jun. The $3,000 sent to Johanna on May 13 is a confirmed investment-account contribution, not rent, and is excluded from both Rent and Personal Expenses."
   }
 }
