@@ -639,17 +639,19 @@
   },
   "account_balances": {
     "as_of": "2026-08-02",
+    "sync_status": "stale",
+    "sync_freshness_note": "Era's Chase connection hasn't posted any transactions past Jul 30 (Personal Checking) / Jul 31 (BUS COMPLETE CHK) as of this snapshot. On-demand resync requires the 'Automate' plan tier (currently on 'Organize'), so this waits for Era's next scheduled sync. Checking 'available' balances already reflect pending activity faster than the transaction feed does -- that's why the two cards below still show pre-payoff amounts until Era catches up.",
     "accounts": [
-      { "name": "BUS COMPLETE CHK", "type": "checking", "balance": 7191.88, "current_ledger": 14020.63, "available": 7191.88 },
-      { "name": "Personal Checking", "type": "checking", "balance": 973.20, "current_ledger": -2.63, "available": 973.20 },
-      { "name": "Chase Freedom Flex", "type": "credit_card", "balance": 0.00 },
-      { "name": "Chase Freedom Unlimited", "type": "credit_card", "balance": 1780.01 },
-      { "name": "Ink Business Cash (S. Romero)", "type": "credit_card", "balance": 4207.75 }
+      { "name": "BUS COMPLETE CHK", "type": "checking", "balance": 7191.88, "current_ledger": 14020.63, "available": 7191.88, "source": "synced" },
+      { "name": "Personal Checking", "type": "checking", "balance": 973.20, "current_ledger": -2.63, "available": 973.20, "source": "synced" },
+      { "name": "Chase Freedom Flex", "type": "credit_card", "balance": 0.00, "source": "synced" },
+      { "name": "Chase Freedom Unlimited", "type": "credit_card", "balance": 0.00, "bank_synced_balance": 1780.01, "source": "reported", "reported_note": "Santiago reports this was paid off in full on 2026-08-01. Chase/Era hasn't posted that payment yet -- last synced balance was $1,780.01. Will auto-confirm once Era resyncs." },
+      { "name": "Ink Business Cash (S. Romero)", "type": "credit_card", "balance": 0.00, "bank_synced_balance": 4207.75, "source": "reported", "reported_note": "Santiago reports this was paid off in full on 2026-08-01. Chase/Era hasn't posted that payment yet -- last synced balance was $4,207.75. Will auto-confirm once Era resyncs." }
     ],
     "total_cash": 8165.08,
-    "total_card_balances": 5987.76,
-    "net_cash_position": 2177.32,
-    "balance_field_note": "Checking figures use the 'available' balance (what's actually spendable now), not the ledger 'current' balance, which can include pending/uncleared holds. BUS COMPLETE CHK: available $7,191.88 vs current $14,020.63 (~$6,828.75 gap, likely pending debits/holds not yet posted). Personal Checking: available $973.20 vs current -$2.63. Era's transaction tools exclude pending/authorization-hold transactions, so the individual pending items can't be itemized from here."
+    "total_card_balances": 0.00,
+    "net_cash_position": 8165.08,
+    "balance_field_note": "Checking figures use the 'available' balance (what's actually spendable now), not the ledger 'current' balance, which can include pending/uncleared holds. BUS COMPLETE CHK: available $7,191.88 vs current $14,020.63 (~$6,828.75 gap). Personal Checking: available $973.20 vs current -$2.63. Era's transaction tools exclude pending/authorization-hold transactions, so individual pending items can't be itemized from here."
   },
   "moms_investment_adjustment": {
     "total_reported": 10000,
@@ -684,6 +686,15 @@
     }
   ],
   "anomalies": [
+    {
+      "date": "2026-08-02",
+      "severity": "Low",
+      "type": "Data Freshness",
+      "detail": "Chase Freedom Unlimited ($1,780.01) and Ink Business Cash / S. Romero ($4,207.75) are shown as $0 based on Santiago's report of paying both off in full on Aug 1 -- Era's sync hasn't posted either payment yet (last synced transaction Jul 30/31). Re-check once Era's next sync completes to confirm both are actually $0 and that no new charges have posted since.",
+      "impact": 5987.76,
+      "status": "review",
+      "initialDone": false
+    },
     {
       "date": "2026-07-24",
       "severity": "High",

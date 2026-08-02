@@ -344,8 +344,10 @@
           <h3>Account Balances</h3>
           <span class="meta" id="ov-bal-asof"></span>
         </div>
+        <div id="ov-bal-freshness" style="display:none;"></div>
         <div class="kpi-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:10px;" id="ov-bal-kpis"></div>
-        <div style="font-size:11px; color:var(--text-muted); margin-bottom:16px;" id="ov-bal-note"></div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:14px;" id="ov-bal-note"></div>
+        <div id="ov-bal-accounts" style="margin-bottom:16px;"></div>
         <div class="pending-card" id="ov-bal-adjusted"></div>
       </div>
 
@@ -853,6 +855,13 @@ function renderOverview(){
   const bal = DATA.account_balances;
   const momAdj = DATA.moms_investment_adjustment;
   document.getElementById('ov-bal-asof').textContent = `As of ${bal.as_of}`;
+  const freshnessEl = document.getElementById('ov-bal-freshness');
+  if(bal.sync_status === 'stale' && bal.sync_freshness_note){
+    freshnessEl.style.display = 'block';
+    freshnessEl.innerHTML = `<div class="banner pending" style="margin-bottom:16px;">◆ Sync Running Behind — ${bal.sync_freshness_note}</div>`;
+  } else {
+    freshnessEl.style.display = 'none';
+  }
   document.getElementById('ov-bal-kpis').innerHTML = `
     <div class="kpi">
       <div class="label">Total Cash (Checking)</div>
@@ -872,6 +881,21 @@ function renderOverview(){
   `;
   const ledgerGaps = bal.accounts.filter(a => a.type==='checking' && typeof a.current_ledger === 'number' && Math.abs(a.current_ledger - a.available) > 1);
   document.getElementById('ov-bal-note').innerHTML = ledgerGaps.length ? `Figures use each account's <b>available</b> balance (spendable now), not the ledger balance. ${ledgerGaps.map(a=>`${a.name}: available ${fmtMoney(a.available)} vs ledger ${fmtMoney(a.current_ledger)}`).join(' · ')} — gap is likely pending holds/uncleared items not yet posted.` : '';
+
+  document.getElementById('ov-bal-accounts').innerHTML = bal.accounts.map(a => {
+    const reported = a.source === 'reported';
+    const badge = reported
+      ? `<span class="badge watch" title="${a.reported_note||''}">Reported — pending sync</span>`
+      : `<span class="badge muted">Synced</span>`;
+    const amtNote = reported ? `<span class="note">was ${fmtMoney(a.bank_synced_balance)} as of last sync</span>` : '';
+    return `<div class="pending-item">
+      <div class="name">${a.name} <span style="color:var(--text-muted); font-weight:400;">(${a.type==='checking'?'Checking':'Credit Card'})</span>${amtNote}</div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        ${badge}
+        <div class="amt num" style="color:var(--text-primary);">${fmtMoney(a.balance)}</div>
+      </div>
+    </div>`;
+  }).join('');
   const totalCashExcl = bal.total_cash - momAdj.assumed_still_in_accounts;
   const netExcl = bal.net_cash_position - momAdj.assumed_still_in_accounts;
   document.getElementById('ov-bal-adjusted').innerHTML = `
