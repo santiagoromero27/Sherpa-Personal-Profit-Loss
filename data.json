@@ -640,15 +640,16 @@
   "account_balances": {
     "as_of": "2026-08-02",
     "accounts": [
-      { "name": "BUS COMPLETE CHK", "type": "checking", "balance": 14020.63 },
-      { "name": "Personal Checking", "type": "checking", "balance": -2.63 },
+      { "name": "BUS COMPLETE CHK", "type": "checking", "balance": 7191.88, "current_ledger": 14020.63, "available": 7191.88 },
+      { "name": "Personal Checking", "type": "checking", "balance": 973.20, "current_ledger": -2.63, "available": 973.20 },
       { "name": "Chase Freedom Flex", "type": "credit_card", "balance": 0.00 },
       { "name": "Chase Freedom Unlimited", "type": "credit_card", "balance": 1780.01 },
       { "name": "Ink Business Cash (S. Romero)", "type": "credit_card", "balance": 4207.75 }
     ],
-    "total_cash": 14018.00,
+    "total_cash": 8165.08,
     "total_card_balances": 5987.76,
-    "net_cash_position": 8030.24
+    "net_cash_position": 2177.32,
+    "balance_field_note": "Checking figures use the 'available' balance (what's actually spendable now), not the ledger 'current' balance, which can include pending/uncleared holds. BUS COMPLETE CHK: available $7,191.88 vs current $14,020.63 (~$6,828.75 gap, likely pending debits/holds not yet posted). Personal Checking: available $973.20 vs current -$2.63. Era's transaction tools exclude pending/authorization-hold transactions, so the individual pending items can't be itemized from here."
   },
   "moms_investment_adjustment": {
     "total_reported": 10000,

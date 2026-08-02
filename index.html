@@ -344,7 +344,8 @@
           <h3>Account Balances</h3>
           <span class="meta" id="ov-bal-asof"></span>
         </div>
-        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:16px;" id="ov-bal-kpis"></div>
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr); margin-bottom:10px;" id="ov-bal-kpis"></div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:16px;" id="ov-bal-note"></div>
         <div class="pending-card" id="ov-bal-adjusted"></div>
       </div>
 
@@ -869,6 +870,8 @@ function renderOverview(){
       <div class="sub">Cash minus card balances</div>
     </div>
   `;
+  const ledgerGaps = bal.accounts.filter(a => a.type==='checking' && typeof a.current_ledger === 'number' && Math.abs(a.current_ledger - a.available) > 1);
+  document.getElementById('ov-bal-note').innerHTML = ledgerGaps.length ? `Figures use each account's <b>available</b> balance (spendable now), not the ledger balance. ${ledgerGaps.map(a=>`${a.name}: available ${fmtMoney(a.available)} vs ledger ${fmtMoney(a.current_ledger)}`).join(' · ')} — gap is likely pending holds/uncleared items not yet posted.` : '';
   const totalCashExcl = bal.total_cash - momAdj.assumed_still_in_accounts;
   const netExcl = bal.net_cash_position - momAdj.assumed_still_in_accounts;
   document.getElementById('ov-bal-adjusted').innerHTML = `
